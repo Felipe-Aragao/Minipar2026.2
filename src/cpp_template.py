@@ -10,6 +10,8 @@ _CPP_HEADER = """\
 #include <cmath>
 #include <cstdlib>
 #include <type_traits>
+#include <cstdio>
+#include <string>
 
 #ifdef _WIN32
   #include <winsock2.h>
@@ -25,6 +27,14 @@ _CPP_HEADER = """\
 
 // Helper para Random nativo
 double random_val() { return (double)rand() / RAND_MAX; }
+
+// Função nativa para formatação decimal do MiniPar
+std::string __fmt(double value, int decimal_places) {
+    char buffer[128];
+    snprintf(buffer, sizeof(buffer), "%.*f", decimal_places, value);
+    return std::string(buffer);
+}
+
 
 // Helper para Input
 std::string input() {

@@ -4,7 +4,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 
-from lexer import Lexer
+from lexer import Lexer, LexError, TokenType
 from parser import Parser
 from semantic import SemanticAnalyzer
 from tac import TACGenerator
@@ -22,7 +22,16 @@ def compile_file(source_path: str, output_name: str) -> bool:
 
     print("[Fase 1] Analise Lexica e Sintatica...")
     lexer  = Lexer(source_code)
-    tokens = lexer.tokenize()
+    try:
+        tokens = lexer.tokenize()
+    except LexError as error:
+        print(f"[ERRO LEXICO] Linha {error.line}, coluna {error.col}: {error}", file=sys.stderr)
+        return False
+    invalid_tokens = [token for token in tokens if token.type == TokenType.UNKNOWN]
+    if invalid_tokens:
+        for token in invalid_tokens:
+            print(f"[ERRO LEXICO] Linha {token.line}, coluna {token.col}: Caractere nao reconhecido: {token.lexeme!r}", file=sys.stderr)
+        return False
 
     parser  = Parser(tokens)
     program = parser.parse()

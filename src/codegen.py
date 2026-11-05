@@ -8,7 +8,7 @@ from ast_nodes import (
     UnaryExpr, NumberExpr, StringExpr, BoolExpr, IdentifierExpr, IfStmt, WhileStmt,
     DoWhileStmt, ForStmt, BreakStmt, ContinueStmt, InputExpr,
     ClassDecl, FuncDecl, ReturnStmt, MethodCall, FuncCallExpr, PropertyAccess, PropertyAssign, NewExpr, ThisExpr,
-    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
+    CChannelExpr, SendStmt,ForkStmt,JoinStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
 )
 from cpp_template import _CPP_HEADER
 
@@ -64,8 +64,10 @@ class CppCodeGenerator:
                 return f"std::stod({args})"
             if node.name == "parse_ints":
                 return f"__parse_ints({args})"
+            if node.name == "fmt":
+                return f"__fmt({args})"
             return f"{node.name}({args})"
-
+           
         if isinstance(node, CChannelExpr):
             ip = self._translate_expression(node.ip)
             port = self._translate_expression(node.port)
@@ -159,6 +161,11 @@ class CppCodeGenerator:
             chan = self._translate_expression(node.channel)
             msg = self._translate_expression(node.message)
             return f"{indent}{chan}->sendData(__to_string({msg}));\n"
+    
+        if isinstance(node, ForkStmt):
+            raise NotImplementedError("[ERRO] Instrução 'fork' ainda não suportada no Back-end pelo gerador C++.")
+        if isinstance(node, JoinStmt):
+            raise NotImplementedError("[ERRO] Instrução 'join' ainda não suportada no Back-end pelo gerador C++.")
 
         if isinstance(node, PrintStmt):
             parts = []

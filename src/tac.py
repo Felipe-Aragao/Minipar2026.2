@@ -6,58 +6,9 @@ from ast_nodes import (
     UnaryExpr, NumberExpr, StringExpr, BoolExpr, IdentifierExpr, IfStmt, WhileStmt,
     DoWhileStmt, ForStmt, BreakStmt, ContinueStmt, InputExpr,
     ClassDecl, FuncDecl, ReturnStmt, MethodCall, FuncCallExpr, PropertyAccess, PropertyAssign, NewExpr, ThisExpr,
-    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
+    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign,
+    ForkStmt, JoinStmt  
 )
-
-
-EXPECTED_QUICKSORT_TAC = """t0 = 0                    // início do array
-t1 = 4                    // fim do array
-S[0] = t0                 // empilha start
-S[1] = t1                 // empilha end
-sp = 2                  // topo da pilha (próxima posição livre)
-LOOP:
-  if sp == 0 goto END     // pilha vazia → fim
-  sp = sp - 1
-  t2 = S[sp]              // end
-  sp = sp - 1
-  t3 = S[sp]              // start
-  if t3 >= t2 goto LOOP   // intervalo inválido → ignora
-  t4 = A[t2]              // pivot = A[end]
-  t5 = t3 - 1             // i = start - 1
-  t6 = t3                 // j = start
-PARTITION_LOOP:
-  if t6 >= t2 goto PARTITION_END
-  t7 = A[t6]
-  if t7 <= t4 goto SWAP
-  t6 = t6 + 1
-  goto PARTITION_LOOP
-SWAP:
-  t5 = t5 + 1
-  t8 = A[t5]
-  A[t5] = A[t6]
-  A[t6] = t8
-  t6 = t6 + 1
-  goto PARTITION_LOOP
-PARTITION_END:
-  t5 = t5 + 1
-  t9 = A[t5]
-  A[t5] = A[t2]
-  A[t2] = t9
-  t10 = t5 - 1
-  S[sp] = t3              // empilha start
-  sp = sp + 1
-  S[sp] = t10             // empilha i - 1
-  sp = sp + 1
-  t11 = t5 + 1
-  S[sp] = t11             // empilha i + 1
-  sp = sp + 1
-  S[sp] = t2              // empilha end
-  sp = sp + 1
-  goto LOOP
-END:
-  // Array A[0..4] está ordenado
-"""
-
 
 class TACGenerator:
     def __init__(self) -> None:
@@ -116,8 +67,8 @@ class TACGenerator:
             self._emit(f"{tmp} = {self._expr(node.object)}.{node.property_name}")
             return tmp
         if isinstance(node, (FuncCallExpr, MethodCall)):
-            args = node.arguments
-            name = node.name if isinstance(node, FuncCallExpr) else f"{self._expr(node.object)}.{node.method_name}"
+            args = getattr(node, "arguments", [])
+            name = getattr(node, "name", "") if isinstance(node, FuncCallExpr) else f"{self._expr(node.object)}.{getattr(node, 'method_name', '')}"
             for arg in args:
                 self._emit(f"param {self._expr(arg)}")
             tmp = self._temp()
@@ -142,7 +93,61 @@ class TACGenerator:
             else:
                 self._emit(f"{tmp} = input()")
             return tmp
+
+        # PARALELISMO: FORK e JOIN quando usados como expressões
+        if isinstance(node, ForkStmt):
+            tmp = self._temp()
+            self._stmt_fork(node, tmp)
+            return tmp
+        if isinstance(node, JoinStmt):
+            tmp = self._temp()
+            self._stmt_join(node, tmp)
+            return tmp
+
         return "?"
+
+    def _stmt_fork(self, node: ForkStmt, assign_to: Optional[str] = None) -> None:
+        """Gera o TAC para a instrução FORK, traduzindo o destino de alocação."""
+        
+        lbl_fork_start = self._label("FORK")
+        lbl_fork_end = self._label("ENDFORK")
+        
+        # Define os parâmetros de alocação (core ou host)
+        alloc_str = ""
+        if node.destino:
+            if node.destino.tipo == "core":
+                alloc_str = f", core {self._expr(node.destino.args[0])}"
+            elif node.destino.tipo == "host":
+                host_args = [self._expr(a) for a in node.destino.args]
+                alloc_str = f", host {', '.join(host_args)}"
+                
+        # Emite a diretiva de fork
+        if assign_to:
+            self._emit(f"{assign_to} = FORK {lbl_fork_start}{alloc_str}")
+        else:
+            self._emit(f"FORK {lbl_fork_start}{alloc_str}")
+            
+        # Pula a execução sequencial por cima do bloco do fork
+        self._emit(f"goto {lbl_fork_end}")
+        
+        # Corpo isolado da subtarefa
+        self._emit(f"{lbl_fork_start}:")
+        self._stmt(node.body)
+        self._emit("END_TASK")
+        
+        # Ponto de retomada da thread principal
+        self._emit(f"{lbl_fork_end}:")
+        
+
+    def _stmt_join(self, node: JoinStmt, assign_to: Optional[str] = None) -> None:
+        """Gera o TAC para a instrução JOIN."""
+        args_eval = [self._expr(a) for a in getattr(node, "args", [])]
+        args_str = ", ".join(args_eval) if args_eval else "ALL"
+        
+        if assign_to:
+            self._emit(f"{assign_to} = JOIN {args_str}")
+        else:
+            self._emit(f"JOIN {args_str}")
 
     def _stmt(self, node: Optional[ASTNode]) -> None:
         if node is None: return
@@ -159,6 +164,13 @@ class TACGenerator:
                 self._emit(f"print {self._expr(arg)}")
         elif isinstance(node, SendStmt):
             self._emit(f"send {self._expr(node.channel)}, {self._expr(node.message)}")
+            
+        # PARALELISMO
+        elif isinstance(node, ForkStmt):
+            self._stmt_fork(node)
+        elif isinstance(node, JoinStmt):
+            self._stmt_join(node)
+            
         elif isinstance(node, (SeqBlock, ParBlock)):
             for stmt in node.statements: self._stmt(stmt)
         elif isinstance(node, IfStmt):
@@ -222,8 +234,6 @@ class TACGenerator:
             self._emit(f"endfunc {node.name}")
 
     def generate_text(self, program: Program) -> str:
-        if any(isinstance(stmt, FuncDecl) and stmt.name == "quicksort_iterativo" for stmt in program.statements):
-            return EXPECTED_QUICKSORT_TAC
         for stmt in program.statements:
             self._stmt(stmt)
         return "\n".join(self.lines) + ("\n" if self.lines else "")

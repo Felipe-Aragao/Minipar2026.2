@@ -24,6 +24,10 @@ class TokenType(Enum):
     RETURN    = auto()
     SEQ       = auto()
     PAR       = auto()
+    FORK      = auto()  
+    JOIN      = auto()  
+    CORE      = auto()  
+    HOST      = auto()  
     THIS      = auto()
     C_CHANNEL = auto()
     SEND      = auto()
@@ -65,6 +69,10 @@ KEYWORDS: dict[str, TokenType] = {
     "new":       TokenType.NEW,
     "seq":       TokenType.SEQ,
     "par":       TokenType.PAR,
+    "fork":      TokenType.FORK,  
+    "join":      TokenType.JOIN,  
+    "core":      TokenType.CORE,  
+    "host":      TokenType.HOST,  
     "if":        TokenType.IF,
     "else":      TokenType.ELSE,
     "while":     TokenType.WHILE,
@@ -91,6 +99,7 @@ KEYWORDS: dict[str, TokenType] = {
     "bool":      TokenType.TYPE,
     "void":      TokenType.TYPE,
     "list":      TokenType.TYPE,
+    "task":      TokenType.TYPE,
     "dict":      TokenType.TYPE,
 }
 
@@ -100,6 +109,13 @@ class Token:
     lexeme: str
     line: int
     col: int
+
+class LexError(Exception):
+    def __init__(self, message: str, line: int, col: int) -> None:
+        super().__init__(message)
+        self.line = line
+        self.col = col
+
 
 class Lexer:
     def __init__(self, source_code: str) -> None:
@@ -160,11 +176,15 @@ class Lexer:
                 while self._peek() not in ('"', "\0"):
                     if self._peek() == "\\":
                         self._advance()
+                        if self._pos >= len(self._source):
+                            raise LexError("String nao terminada.", start_line, start_col)
                         escaped = self._advance()
                         escape_map = {"n": "\n", "t": "\t", '"': '"', "\\": "\\"}
                         text += escape_map.get(escaped, escaped)
                     else: text += self._advance()
-                if self._peek() == '"': self._advance()
+                if self._peek() != '"':
+                    raise LexError("String nao terminada.", start_line, start_col)
+                self._advance()
                 tokens.append(self._make_token(TokenType.STRING_LITERAL, text, start_line, start_col))
             else:
                 op = self._advance()
