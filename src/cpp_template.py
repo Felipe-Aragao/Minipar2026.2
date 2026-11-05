@@ -11,7 +11,8 @@ _CPP_HEADER = """\
 #include <cstdlib>
 #include <type_traits>
 #include <cstdio>
-#include <string>
+#include <stdexcept>
+#include <limits>
 
 #ifdef _WIN32
   #include <winsock2.h>
@@ -99,6 +100,66 @@ std::string __to_string(const T& val) {
     } else {
         return std::to_string(val);
     }
+}
+
+// Índices são inteiros não negativos; strings usam bytes, adequados ao lexer ASCII.
+size_t __checked_index(double index) {
+    if (!std::isfinite(index) || index < 0 || std::floor(index) != index ||
+        index >= static_cast<double>(std::numeric_limits<size_t>::max())) {
+        throw std::out_of_range("Indice deve ser inteiro nao negativo");
+    }
+    return static_cast<size_t>(index);
+}
+
+std::string __index(const std::string& text, double index) {
+    return std::string(1, text.at(__checked_index(index)));
+}
+
+template<typename T>
+const T& __index(const std::vector<T>& values, double index) {
+    return values.at(__checked_index(index));
+}
+
+template<typename T>
+T& __index(std::vector<T>& values, double index) {
+    return values.at(__checked_index(index));
+}
+
+template<typename T, typename V>
+void __set_index(std::vector<T>& values, double index, const V& value) {
+    values.at(__checked_index(index)) = value;
+}
+
+void __set_index(std::string& text, double index, const std::string& value) {
+    if (value.size() != 1) throw std::invalid_argument("Atribuicao por indice exige um byte");
+    text.at(__checked_index(index)) = value[0];
+}
+
+template<typename... Args>
+auto __make_list(const Args&... values) {
+    if constexpr (sizeof...(Args) > 0 && (std::is_same_v<Args, std::string> && ...)) {
+        return std::vector<std::string>{values...};
+    } else {
+        static_assert((std::is_arithmetic_v<Args> && ...), "Lista exige elementos numericos ou strings homogeneas");
+        return std::vector<double>{static_cast<double>(values)...};
+    }
+}
+
+int __checked_int(double number) {
+    if (!std::isfinite(number) || std::trunc(number) < std::numeric_limits<int>::min() ||
+        std::trunc(number) > std::numeric_limits<int>::max()) {
+        throw std::out_of_range("Valor fora da faixa de int");
+    }
+    return static_cast<int>(number);
+}
+
+int __to_int(const std::string& value) {
+    return __checked_int(std::stod(value));
+}
+
+template<typename T>
+int __to_int(T value) {
+    return __checked_int(static_cast<double>(value));
 }
 
 template<typename T>

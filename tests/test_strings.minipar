@@ -1,0 +1,48 @@
+class Texto {
+    var valor = "12+3";
+
+    func ler() {
+        return this.valor;
+    }
+
+    func preparar(texto) {
+        this.valor = texto;
+        return this.valor + "!";
+    }
+}
+
+func rotulo(ativo) {
+    if (ativo) { return "sim"; }
+    return "nao";
+}
+
+seq {
+    var objeto = new Texto();
+    var texto = objeto.ler();
+    var reconstruido = "";
+    var i = 0;
+    while (i < len(texto)) {
+        reconstruido = reconstruido + texto[i];
+        i = i + 1;
+    }
+    print("Texto:", reconstruido);
+    print("Comparacoes:", texto == "12+3", texto != "outra", texto[0] == "1");
+    texto[0] = "9";
+    print("Edicao:", texto);
+    print("Metodo:", objeto.preparar("novo"));
+    print("Retornos:", rotulo(true), rotulo(false));
+    string vazio;
+    vazio = "ok";
+    print("Declaracao:", vazio, len("abc"), "a" + "b");
+    print("Conversoes:", to_number("12.5"), to_int("-3.9"), to_int(2.9999999), to_string(7));
+    var tokens = ["12", "+", "3"];
+    tokens.append("fim");
+    tokens[1] = "*";
+    print("Tokens:", tokens, len(tokens), tokens[0] == "12");
+    var numeros = [1, 2.5, 3];
+    numeros[0] = 4;
+    print("Numeros:", numeros);
+    var matriz = matrix(2, 2, 0);
+    matriz[0][1] = 5;
+    print("Matriz:", matriz[0][1]);
+}

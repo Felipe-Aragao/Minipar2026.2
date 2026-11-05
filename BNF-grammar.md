@@ -826,8 +826,8 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `range(n)` / `range(a,b)` | `range(int)` → `list` | Gera sequência inteira |
 | `len(col)` | `len(list\|string)` → `number` | Comprimento de coleção |
 | `to_number(s)` | `to_number(string)` → `number` | Converte string para número |
-| `to_int(x)` | `to_int(x)` → `number` (inferência atual) | Reconhecida pelo semântico; conversão e tipos aceitos ainda pendentes no back-end |
-| `to_string(v)` | `to_string(v)` → `string` | Reconhecida pelo semântico; tradução da chamada ainda pendente no back-end |
+| `to_int(x)` | `to_int(x)` → `number` (inferência atual) | Converte número ou string numérica e trunca em direção a zero; verifica a faixa de int |
+| `to_string(v)` | `to_string(v)` → `string` | Traduzida para `__to_string`; aceita números, booleanos e strings |
 | `parse_ints(s)` | `parse_ints(string)` → `list` | Parseia inteiros de string separados por espaço |
 | `fmt(v, casas)` | `fmt(number, number)` → `string` | Formata casas decimais por `__fmt`; o semântico verifica dois argumentos |
 
@@ -1156,14 +1156,16 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 | `c_channel(ip, porta)` | `std::make_shared<MiniParChannel>(ip, porta)` |
 | `send(canal, msg)` | `canal->sendData(__to_string(msg))` |
 | `receive(canal)` | `canal->receiveData()` |
-| `[1, 2, 3]` | `std::vector<double>{1, 2, 3}` |
+| `[1, 2, 3]` | `__make_list(1, 2, 3)` → `std::vector<double>` |
+| `["a", "b"]` | `__make_list(...)` → `std::vector<std::string>` |
+| `s[i]` / `s[i] = "a"` | `__index` / `__set_index`, com verificação de índice |
 | `matrix(l, c, v)` | `__make_matrix(l, c, v)` |
 | `time()` | Pendente; não há tradução específica nem helper de relógio |
 | `exp(x)` | `std::exp(x)` |
 | `random()` | `random_val()` |
 | `to_number(s)` | `std::stod(s)` |
-| `to_int(x)` | Pendente; não há tradução específica |
-| `to_string(v)` | Pendente; o helper interno existe, mas essa chamada não é traduzida |
+| `to_int(x)` | `__to_int(x)` |
+| `to_string(v)` | `__to_string(v)` |
 | `fmt(v, casas)` | `__fmt(v, casas)` |
 | `len(x)` | `x.size()` |
 | `range(n)` | `__minipar_range(n)` |
@@ -1178,11 +1180,21 @@ infixadas. A sintaxe já contempla classes, métodos, recursão, listas, strings
 indexação, operações aritméticas e parênteses. Ainda é necessário comprovar o
 comportamento dessas construções em conjunto no programa completo.
 
-O gerador precisa consolidar strings (armazenamento como `std::string`, acesso a
-caracteres, comparações, concatenação e comprimento) e as operações usadas para
-armazenar tokens, nós e símbolos. Listas literais hoje geram `std::vector<double>`;
-listas de strings ou coleções heterogêneas não estão garantidas. Novas extensões
-necessárias devem ser sincronizadas entre esta gramática e o compilador.
+Os literais string agora geram `std::string`, permitindo armazenamento em variáveis,
+atributos e retornos, comparação por conteúdo, concatenação e `len(s)`. `string s;`
+inicializa uma string vazia. `s[i]` retorna uma string de um byte; `s[i] = texto`
+exige exatamente um byte. Os índices são baseados em zero, inteiros não negativos
+e dentro dos limites. Strings seguem a representação em bytes de `std::string`:
+indexação e comprimento não contam caracteres Unicode completos.
+
+Listas numéricas continuam sendo `std::vector<double>`; listas não vazias cujos
+elementos são strings geram `std::vector<std::string>`, inclusive para tokens.
+Listas heterogêneas não são suportadas. `[]` continua sendo lista numérica vazia;
+para uma lista de strings vazia, é possível inicializar `[""]` e chamar `.pop()`.
+A dedução usa os tipos C++ das expressões, não há uma nova sintaxe de tipo de lista.
+O suporte foi exercitado por `tests/test_strings.minipar`; ainda é necessário testar
+as operações em conjunto no minicompilador completo, inclusive métodos recursivos.
+Novas extensões necessárias devem ser sincronizadas entre gramática e compilador.
 
 A geração de ARMv7 pelo minicompilador pode usar saída textual: não exige palavras
 reservadas Assembly no MiniPar. Salvar três saídas `.arm` e validá-las no CPUlator
