@@ -74,7 +74,7 @@ number  int  string  bool  void  list  dict  task
 ### 2.2 Literais
 
 ```bnf
-<NUMBER>         ::= <digito> { <digito> } [ "." <digito> { <digito> } ]
+<NUMBER>         ::= <digito> { <digito> } [ "." { <digito> } ]
 <STRING_LITERAL> ::= '"' { <caractere> } '"'
 <BOOL_LITERAL>   ::= "true" | "false"
 <IDENTIFIER>     ::= ( <letra> | "_" ) { <letra> | <digito> | "_" }
@@ -139,7 +139,7 @@ task subtarefa = fork core(1) { calcular(); };
 ### 4.2 Declaração de Função
 
 ```bnf
-<declaracao_funcao> ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_seq>
+<declaracao_funcao> ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_chaves>
 
 <lista_parametros> ::= <parametro> { "," <parametro> }
 
@@ -165,8 +165,8 @@ func calcular(number x, number y) {
                             { <membro_classe> }
                         "}"
 
-<membro_classe> ::= "var" <declaracao_variavel>
-                  | "func" <declaracao_funcao>
+<membro_classe> ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
+                        | <declaracao_funcao>
 ```
 
 **Exemplos:**
@@ -246,14 +246,14 @@ print("Valor:", x, "e", y);
 ### 5.3 Comando Return
 
 ```bnf
-<comando_return> ::= "return" [ <expressao> ] ";"
+<comando_return> ::= "return" ( ";" | <expressao> [ ";" ] )
 ```
 
 ### 5.4 Comandos Break e Continue
 
 ```bnf
-<comando_break>    ::= "break" ";"
-<comando_continue> ::= "continue" ";"
+<comando_break>    ::= "break" [ ";" ]
+<comando_continue> ::= "continue" [ ";" ]
 ```
 
 > `break` e `continue` são válidos somente dentro de laços (`while`, `do-while`, `for`).
@@ -268,8 +268,7 @@ print("Valor:", x, "e", y);
 Executa os comandos internos em ordem, da mesma forma que um bloco tradicional.
 
 ```bnf
-<bloco_seq> ::= "seq" "{" { <comando> } "}"
-              | "{" { <comando> } "}"
+<bloco_seq> ::= [ "seq" ] <bloco_chaves>
 ```
 
 O `seq` é opcional: blocos com chaves `{ }` são tratados como sequenciais por padrão.
@@ -303,9 +302,9 @@ Conforme a especificação do MiniPar 2026.2, cada subtarefa criada via `fork` p
 O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `task` à expressão; a criação efetiva dessa referência e sua utilização em `join` dependem do back-end.
 
 ```bnf
-<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> ";" )
+<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> ";" )
 
-<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> )
+<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> )
 
 <alocacao_fork>      ::= <destino_nucleo>
                        | <destino_computador>
@@ -314,7 +313,7 @@ O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `
 
 <destino_computador> ::= "host" "(" <expressao> [ "," <expressao> ] ")"
 
-<bloco_fork>         ::= "{" { <comando> } "}"
+<bloco_chaves>         ::= "{" { <comando> } "}"
 ```
 
 **Exemplos:**
@@ -866,7 +865,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 (* ============================================================ *)
 (*       GRAMÁTICA BNF — LINGUAGEM MINIPAR 2026.2               *)
 (*       Compilador: minipar-improvement                        *)
-(*       Repositório: github.com/luizwhirl/minipar-improvement  *)
+(*       Repositório: github.com/Felipe-Aragao/Minipar2026.2    *)
 (* ============================================================ *)
 
 
@@ -884,7 +883,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 <declaracao_variavel> ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
                         | <tipo> <IDENTIFIER> [ "=" <expressao> ] ";"
 
-<declaracao_funcao>   ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_seq>
+<declaracao_funcao>   ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_chaves>
 
 <lista_parametros>    ::= <parametro> { "," <parametro> }
 <parametro>           ::= [ <tipo> ] <IDENTIFIER>
@@ -892,8 +891,8 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 <declaracao_classe>   ::= "class" <IDENTIFIER> [ "extends" <IDENTIFIER> ]
                           "{" { <membro_classe> } "}"
 
-<membro_classe>       ::= "var" <declaracao_variavel>
-                        | "func" <declaracao_funcao>
+<membro_classe>       ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
+                        | <declaracao_funcao>
 
 
 (* ─── COMANDOS ─── *)
@@ -923,21 +922,20 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 
 <comando_print>     ::= "print" "(" [ <expressao> { "," <expressao> } ] ")" ";"
 <comando_send>      ::= "send"  "(" <expressao> "," <expressao> ")" ";"
-<comando_return>    ::= "return" [ <expressao> ] ";"
-<comando_break>     ::= "break" ";"
-<comando_continue>  ::= "continue" ";"
+<comando_return>    ::= "return" ( ";" | <expressao> [ ";" ] )
+<comando_break>     ::= "break" [ ";" ]
+<comando_continue>  ::= "continue" [ ";" ]
 
 
 (* ─── BLOCOS E PARALELISMO (SEQ, PAR, FORK, JOIN) ─── *)
 
-<bloco_seq>          ::= "seq" "{" { <comando> } "}"
-                       | "{" { <comando> } "}"
+<bloco_seq>          ::= [ "seq" ] <bloco_chaves>
 
 <bloco_par>          ::= "par" "{" { <comando> } "}"
 
-<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> ";" )
+<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> ";" )
 
-<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> )
+<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> )
 
 <alocacao_fork>      ::= <destino_nucleo>
                        | <destino_computador>
@@ -946,7 +944,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 
 <destino_computador> ::= "host" "(" <expressao> [ "," <expressao> ] ")"
 
-<bloco_fork>         ::= "{" { <comando> } "}"
+<bloco_chaves>         ::= "{" { <comando> } "}"
 
 <comando_join>       ::= "join" [ "(" [ <lista_argumentos> ] ")" ] ";"
 
@@ -1173,12 +1171,13 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 
 ---
 
-### Pendências para o Teste 11 e integração
+### Teste 11 e integração
 
 O Teste 11 é um programa MiniPar que implementa um minicompilador de expressões
 infixadas. A sintaxe já contempla classes, métodos, recursão, listas, strings,
-indexação, operações aritméticas e parênteses. Ainda é necessário comprovar o
-comportamento dessas construções em conjunto no programa completo.
+indexação, operações aritméticas e parênteses. O programa de integração
+`tests/teste11_tokenizador.minipar` usa essas construções para gerar tokens, AST,
+tabela de símbolos, TAC e Assembly ARMv7, além de avaliar a expressão.
 
 Os literais string agora geram `std::string`, permitindo armazenamento em variáveis,
 atributos e retornos, comparação por conteúdo, concatenação e `len(s)`. `string s;`
@@ -1192,19 +1191,31 @@ elementos são strings geram `std::vector<std::string>`, inclusive para tokens.
 Listas heterogêneas não são suportadas. `[]` continua sendo lista numérica vazia;
 para uma lista de strings vazia, é possível inicializar `[""]` e chamar `.pop()`.
 A dedução usa os tipos C++ das expressões, não há uma nova sintaxe de tipo de lista.
-O suporte foi exercitado por `tests/test_strings.minipar`; ainda é necessário testar
-as operações em conjunto no minicompilador completo, inclusive métodos recursivos.
-Novas extensões necessárias devem ser sincronizadas entre gramática e compilador.
+O suporte foi exercitado por `tests/test_strings.minipar` e pelo Teste 11,
+que usa métodos recursivos para construir e exibir a AST.
 
-A geração de ARMv7 pelo minicompilador pode usar saída textual: não exige palavras
-reservadas Assembly no MiniPar. Salvar três saídas `.arm` e validá-las no CPUlator
-são entregas separadas. As expressões solicitadas resultam em 22, -84 e 22;
-a primeira e a terceira são iguais. Não há comprovação dessa execução nesta revisão.
+A emissão de ARMv7 é textual. Os três arquivos em `tests/arm/` deixam 22, -84 e 22
+em `r8` para os exemplos do enunciado. A primeira e a terceira expressões são iguais.
+A avaliação em MiniPar e os valores das instruções foram conferidos localmente.
+A execução e a captura de evidências no CPUlator seguem como etapa de validação.
+O emissor trabalha com inteiros de 32 bits e usa um registrador por nó até `r12`.
+Divisão e decimais fracionários são aceitos na avaliação, com diagnóstico quando
+a emissão ARMv7 estiver indisponível.
 
-Tokens, AST, símbolos, semântica e TAC estão disponíveis por `src/analise.py` para
-integração à Web didática. A criação dessa interface e a visualização da AST são
-trabalhos de interface, não produções da gramática. Os componentes I*/C_* também
-constituem uma exigência arquitetural separada da sintaxe aqui documentada.
+O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
+
+| Interface | Componente | Entrada e saída |
+|---|---|---|
+| `ILexico` | `C_Lexico` | Código fonte → lista de tokens |
+| `ISintatico` | `C_Sintatico` | Tokens → AST |
+| `ISemantico` | `C_Semantico` | AST → validação, símbolos e diagnósticos |
+| `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
+
+A API preserva os resultados das fases concluídas e registra linha e coluna nos
+erros léxicos e sintáticos. A coluna dos erros semânticos permanece indisponível
+na AST atual. O TAC representa subtarefas em blocos `FORK`/`END_TASK`, com
+`END_TASK operando` quando o corpo é uma expressão. `JOIN ALL` representa a
+sincronização sem argumentos.
 
 **Limitação importante do gerador atual:** os bloqueios explícitos de fork/join
 estão no tratamento de comandos. Como expressões, esses nós ainda não possuem
