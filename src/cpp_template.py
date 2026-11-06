@@ -4,6 +4,7 @@ _CPP_HEADER = """\
 #include <sstream>
 #include <vector>
 #include <thread>
+#include <future>
 #include <memory>
 #include <cstring>
 #include <chrono>
@@ -44,6 +45,22 @@ void __set_core_affinity(int core_id) {
     CPU_SET(core_id, &cpuset);
     pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
 #endif
+}
+
+// Pool global de tarefas disparadas por fork como comando para sincronizacao com barreira (join;)
+inline std::vector<std::future<void>> __task_pool;
+
+// Helper para sincronizacao de tarefas com argumentos join(t) ou join(lista_de_tarefas)
+template<typename T>
+void __minipar_join_target(std::future<T>& f) {
+    if (f.valid()) f.wait();
+}
+
+template<typename T>
+void __minipar_join_target(std::vector<T>& vec) {
+    for (auto& item : vec) {
+        __minipar_join_target(item);
+    }
 }
 
 // Helper para Random nativo

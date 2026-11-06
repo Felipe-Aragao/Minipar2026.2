@@ -98,6 +98,32 @@ class CppCodeGenerator:
             idx = self._translate_expression(node.index)
             return f"__index({obj}, {idx})"
 
+        if isinstance(node, ForkStmt):
+            core_setup = ""
+            if node.destino and node.destino.tipo == "core" and node.destino.args:
+                core_expr = self._translate_expression(node.destino.args[0])
+                core_setup = f"__set_core_affinity(static_cast<int>({core_expr})); "
+
+            if isinstance(node.body, SeqBlock):
+                body_lines = []
+                if core_setup:
+                    body_lines.append(f"        {core_setup}\n")
+                for stmt in node.body.statements:
+                    body_lines.append(self._translate_statement(stmt, "        "))
+                inner = "".join(body_lines)
+                return f"std::async(std::launch::async, [&]() {{\n{inner}    }})"
+            else:
+                body_expr = self._translate_expression(node.body)
+                return f"std::async(std::launch::async, [&]() {{ {core_setup}return {body_expr}; }})"
+
+        if isinstance(node, JoinStmt):
+            if node.args:
+                if len(node.args) == 1:
+                    return f"{self._translate_expression(node.args[0])}.get()"
+                waits = ", ".join(f"{self._translate_expression(a)}.get()" for a in node.args)
+                return f"({waits})"
+            return "0"
+
         return "0"
 
     def _has_value_return(self, node: Optional[ASTNode]) -> bool:
@@ -172,9 +198,42 @@ class CppCodeGenerator:
             return f"{indent}{chan}->sendData(__to_string({msg}));\n"
     
         if isinstance(node, ForkStmt):
-            raise NotImplementedError("[ERRO] Instrução 'fork' ainda não suportada no Back-end pelo gerador C++.")
+            core_setup = ""
+            if node.destino and node.destino.tipo == "core" and node.destino.args:
+                core_expr = self._translate_expression(node.destino.args[0])
+                core_setup = f"__set_core_affinity(static_cast<int>({core_expr}));\n"
+
+            if isinstance(node.body, SeqBlock):
+                body_lines = []
+                if core_setup:
+                    body_lines.append(f"{indent}        {core_setup}")
+                for stmt in node.body.statements:
+                    body_lines.append(self._translate_statement(stmt, indent + "        "))
+                body_code = "".join(body_lines)
+            else:
+                body_expr = self._translate_expression(node.body)
+                body_code = f"{indent}        {core_setup}{indent}        {body_expr};\n" if core_setup else f"{indent}        {body_expr};\n"
+
+            return (
+                f"{indent}__task_pool.push_back(std::async(std::launch::async, [&]() {{\n"
+                f"{body_code}"
+                f"{indent}}}));\n"
+            )
+
         if isinstance(node, JoinStmt):
-            raise NotImplementedError("[ERRO] Instrução 'join' ainda não suportada no Back-end pelo gerador C++.")
+            if not node.args:
+                return (
+                    f"{indent}for (auto& __f : __task_pool) {{\n"
+                    f"{indent}    if (__f.valid()) __f.get();\n"
+                    f"{indent}}}\n"
+                    f"{indent}__task_pool.clear();\n"
+                )
+            else:
+                lines = []
+                for arg in node.args:
+                    arg_str = self._translate_expression(arg)
+                    lines.append(f"{indent}__minipar_join_target({arg_str});\n")
+                return "".join(lines)
 
         if isinstance(node, PrintStmt):
             parts = []
