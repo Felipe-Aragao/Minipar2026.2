@@ -56,6 +56,8 @@ class CppCodeGenerator:
                 return f"std::exp({args})"
             if node.name == "random":
                 return "random_val()"
+            if node.name == "time":
+                return "__minipar_time()"
             if node.name == "len":
                 return f"{self._translate_expression(node.arguments[0])}.size()"
             if node.name == "range":
@@ -127,6 +129,10 @@ class CppCodeGenerator:
             return self._uses_float_return(node.body)
         if isinstance(node, ReturnStmt):
             return self._uses_float_return(node.value)
+        if isinstance(node, FuncCallExpr):
+            if node.name in ("time", "random"):
+                return True
+            return any(self._uses_float_return(arg) for arg in node.arguments)
         return False
 
     def _return_type(self, body: Optional[ASTNode]) -> str:

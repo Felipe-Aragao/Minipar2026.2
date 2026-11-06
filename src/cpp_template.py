@@ -29,6 +29,12 @@ _CPP_HEADER = """\
 // Helper para Random nativo
 double random_val() { return (double)rand() / RAND_MAX; }
 
+// Helper para captura de tempo de alta precisao (em segundos)
+double __minipar_time() {
+    auto now = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double>(now.time_since_epoch()).count();
+}
+
 // Função nativa para formatação decimal do MiniPar
 std::string __fmt(double value, int decimal_places) {
     char buffer[128];
