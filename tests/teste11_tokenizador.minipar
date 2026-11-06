@@ -82,6 +82,257 @@ class TokenizadorExpressao {
     }
 }
 
+class ParserExpressao {
+    var tipos = [""];
+    var lexemas = [""];
+    var colunas = [];
+    var pos = 0;
+    var erro = "";
+    var raiz = -1;
+
+    var tipos_nos = [""];
+    var valores = [""];
+    var esquerda = [];
+    var direita = [];
+    var ast_texto = "";
+
+    func adicionar_no(tipo, valor, esq, dir) {
+        var indice = len(this.valores);
+        this.tipos_nos.append(tipo);
+        this.valores.append(valor);
+        this.esquerda.append(esq);
+        this.direita.append(dir);
+        return indice;
+    }
+
+    func falhar(mensagem) {
+        this.erro = mensagem + " na coluna " + to_string(to_int(this.colunas[this.pos]));
+    }
+
+    # As rotinas recursivas guardam o indice do no produzido em raiz.
+    func expressao() {
+        this.termo();
+        while (this.erro == "" && (this.lexemas[this.pos] == "+" || this.lexemas[this.pos] == "-")) {
+            var operador = this.lexemas[this.pos];
+            var esq = this.raiz;
+            this.pos = this.pos + 1;
+            this.termo();
+            if (this.erro == "") {
+                this.raiz = this.adicionar_no("BINARIO", operador, esq, this.raiz);
+            }
+        }
+    }
+
+    func termo() {
+        this.fator();
+        while (this.erro == "" && (this.lexemas[this.pos] == "*" || this.lexemas[this.pos] == "/")) {
+            var operador = this.lexemas[this.pos];
+            var esq = this.raiz;
+            this.pos = this.pos + 1;
+            this.fator();
+            if (this.erro == "") {
+                this.raiz = this.adicionar_no("BINARIO", operador, esq, this.raiz);
+            }
+        }
+    }
+
+    func fator() {
+        var tipo = this.tipos[this.pos];
+        var lexema = this.lexemas[this.pos];
+        if (tipo == "NUMERO" || tipo == "IDENTIFICADOR") {
+            this.raiz = this.adicionar_no(tipo, lexema, -1, -1);
+            this.pos = this.pos + 1;
+        } else if (lexema == "+" || lexema == "-") {
+            this.pos = this.pos + 1;
+            this.fator();
+            if (this.erro == "") {
+                this.raiz = this.adicionar_no("UNARIO", lexema, this.raiz, -1);
+            }
+        } else if (lexema == "(") {
+            this.pos = this.pos + 1;
+            this.expressao();
+            if (this.erro == "") {
+                if (this.lexemas[this.pos] == ")") {
+                    this.pos = this.pos + 1;
+                } else {
+                    this.falhar("Esperado ')'");
+                }
+            }
+        } else {
+            this.falhar("Esperado operando");
+        }
+    }
+
+    func analisar(tokens) {
+        this.tipos = tokens.tipos;
+        this.lexemas = tokens.lexemas;
+        this.colunas = tokens.colunas;
+        this.pos = 0;
+        this.erro = "";
+        this.raiz = -1;
+        this.tipos_nos = [""];
+        this.tipos_nos.pop();
+        this.valores = [""];
+        this.valores.pop();
+        this.esquerda = [];
+        this.direita = [];
+        this.ast_texto = "";
+        this.expressao();
+        if (this.erro == "" && this.tipos[this.pos] != "FIM") {
+            this.falhar("Token inesperado '" + this.lexemas[this.pos] + "'");
+        }
+        if (this.erro != "") {
+            this.raiz = -1;
+            return false;
+        }
+        return true;
+    }
+
+    func escrever_ast(indice) {
+        if (this.tipos_nos[indice] == "BINARIO" || this.tipos_nos[indice] == "UNARIO") {
+            this.ast_texto = this.ast_texto + "(" + this.valores[indice] + " ";
+            this.escrever_ast(this.esquerda[indice]);
+            if (this.direita[indice] >= 0) {
+                this.ast_texto = this.ast_texto + " ";
+                this.escrever_ast(this.direita[indice]);
+            }
+            this.ast_texto = this.ast_texto + ")";
+        } else {
+            this.ast_texto = this.ast_texto + this.valores[indice];
+        }
+    }
+}
+
+class GeradorExpressao {
+    var simbolos = [""];
+    var categorias = [""];
+    var operandos = [""];
+    var resultados = [];
+    var temporario = 1;
+    var arm = ".syntax unified\n.arm\n.global _start\n.text\n_start:\n";
+    var erro_arm = "";
+    var erro_avaliacao = "";
+
+    func simbolo(nome, categoria) {
+        var i = 1;
+        while (i < len(this.simbolos)) {
+            if (this.simbolos[i] == nome) { return; }
+            i = i + 1;
+        }
+        this.simbolos.append(nome);
+        this.categorias.append(categoria);
+        if (categoria == "VAR") {
+            print("Aviso: variavel sem valor, usando 0:", nome);
+        }
+    }
+
+    func gerar(arvore) {
+        this.operandos.pop();
+        print("TAC:");
+        var i = 0;
+        while (i < len(arvore.valores)) {
+            var tipo = arvore.tipos_nos[i];
+            var valor = arvore.valores[i];
+            var reg = "r" + to_string(i);
+            var numero = 0.0;
+            var instrucao = "";
+            if (tipo == "NUMERO" || tipo == "IDENTIFICADOR") {
+                this.operandos.append(valor);
+                if (tipo == "NUMERO") {
+                    this.simbolo(valor, "CONST");
+                    numero = to_number(valor);
+                    if (numero >= 0 && numero <= 2147483647 && numero == to_int(numero)) {
+                        var imediato = to_string(to_int(numero));
+                        if (numero <= 255) {
+                            instrucao = "    MOV " + reg + ", #" + imediato;
+                        } else {
+                            instrucao = "    LDR " + reg + ", =" + imediato;
+                        }
+                    } else {
+                        this.erro_arm = "Literal fora do dominio inteiro ARMv7.";
+                    }
+                } else {
+                    this.simbolo(valor, "VAR");
+                    this.erro_arm = "Variaveis sem valor nao podem ser emitidas em ARMv7.";
+                }
+            } else {
+                var esq = arvore.esquerda[i];
+                var a = this.resultados[esq];
+                var op_esq = this.operandos[esq];
+                var reg_esq = "r" + to_string(to_int(esq));
+                var temp = "t" + to_string(this.temporario);
+                this.temporario = this.temporario + 1;
+                if (tipo == "UNARIO") {
+                    print(temp, "=", valor, op_esq);
+                    numero = 0.0 + a;
+                    instrucao = "    MOV " + reg + ", " + reg_esq;
+                    if (valor == "-") {
+                        numero = 0 - a;
+                        instrucao = "    RSB " + reg + ", " + reg_esq + ", #0";
+                    }
+                } else {
+                    var dir = arvore.direita[i];
+                    var b = this.resultados[dir];
+                    var reg_dir = "r" + to_string(to_int(dir));
+                    print(temp, "=", op_esq, valor, this.operandos[dir]);
+                    var op_arm = "";
+                    if (valor == "+") {
+                        numero = a + b;
+                        op_arm = "ADD";
+                    } else if (valor == "-") {
+                        numero = a - b;
+                        op_arm = "SUB";
+                    } else if (valor == "*") {
+                        numero = a * b;
+                        op_arm = "MUL";
+                    } else {
+                        if (b == 0) {
+                            this.erro_avaliacao = "Divisao por zero.";
+                        } else {
+                            numero = a / b;
+                        }
+                        this.erro_arm = "Divisao nao suportada pelo emissor ARMv7.";
+                    }
+                    if (op_arm != "") {
+                        instrucao = "    " + op_arm + " " + reg + ", " + reg_esq + ", " + reg_dir;
+                    }
+                }
+                this.operandos.append(temp);
+            }
+            this.resultados.append(numero);
+            if (i >= 13) {
+                this.erro_arm = "Expressao excede os 13 registradores disponiveis.";
+            } else if (numero < -2147483648 || numero > 2147483647) {
+                this.erro_arm = "Resultado intermediario fora da faixa de 32 bits.";
+            }
+            if (instrucao != "") {
+                this.arm = this.arm + instrucao + "\n";
+            }
+            i = i + 1;
+        }
+    }
+
+    func exibir(raiz) {
+        print("Tabela de simbolos:");
+        var i = 1;
+        while (i < len(this.simbolos)) {
+            print(this.simbolos[i], this.categorias[i]);
+            i = i + 1;
+        }
+        if (this.erro_avaliacao == "") {
+            print("Resultado:", to_string(this.resultados[raiz]));
+        } else {
+            print("Erro de avaliacao:", this.erro_avaliacao);
+        }
+        if (this.erro_arm == "") {
+            print("ARMv7:");
+            print(this.arm + "    B . @ resultado em r" + to_string(raiz));
+        } else {
+            print("ARMv7 indisponivel:", this.erro_arm);
+        }
+    }
+}
+
 seq {
     var texto = input();
     var lexer = new TokenizadorExpressao();
@@ -90,6 +341,16 @@ seq {
         while (i < len(lexer.tipos)) {
             print(lexer.colunas[i], lexer.tipos[i], lexer.lexemas[i]);
             i = i + 1;
+        }
+        var parser = new ParserExpressao();
+        if (parser.analisar(lexer)) {
+            parser.escrever_ast(parser.raiz);
+            print("AST:", parser.ast_texto);
+            var gerador = new GeradorExpressao();
+            gerador.gerar(parser);
+            gerador.exibir(parser.raiz);
+        } else {
+            print("Erro sintatico:", parser.erro);
         }
     } else {
         print("Erro lexico:", lexer.erro);
