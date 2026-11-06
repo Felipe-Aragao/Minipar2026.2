@@ -15,16 +15,36 @@ _CPP_HEADER = """\
 #include <limits>
 
 #ifdef _WIN32
+  #ifndef NOMINMAX
+    #define NOMINMAX
+  #endif
   #include <winsock2.h>
   #include <ws2tcpip.h>
+  #include <windows.h>
   #pragma comment(lib, "ws2_32.lib")
   #define CLOSE_SOCK closesocket
 #else
   #include <sys/socket.h>
   #include <arpa/inet.h>
   #include <unistd.h>
+  #include <pthread.h>
+  #include <sched.h>
   #define CLOSE_SOCK close
 #endif
+
+// Helper para afinidade de nucleos da CPU (Core Affinity)
+void __set_core_affinity(int core_id) {
+    if (core_id < 0) return;
+#ifdef _WIN32
+    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (core_id % 64));
+    SetThreadAffinityMask(GetCurrentThread(), mask);
+#elif defined(__linux__)
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(core_id, &cpuset);
+    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+#endif
+}
 
 // Helper para Random nativo
 double random_val() { return (double)rand() / RAND_MAX; }
