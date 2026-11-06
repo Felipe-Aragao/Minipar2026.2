@@ -1,0 +1,97 @@
+class TokenizadorExpressao {
+    var tipos = [""];
+    var lexemas = [""];
+    var colunas = [];
+    var erro = "";
+
+    func digito(c) {
+        return c >= "0" && c <= "9";
+    }
+
+    func letra(c) {
+        return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "_";
+    }
+
+    func registrar(tipo, lexema, coluna) {
+        this.tipos.append(tipo);
+        this.lexemas.append(lexema);
+        this.colunas.append(coluna);
+    }
+
+    func analisar(texto) {
+        this.tipos = [""];
+        this.tipos.pop();
+        this.lexemas = [""];
+        this.lexemas.pop();
+        this.colunas = [];
+        this.erro = "";
+        var i = 0;
+        var tamanho = len(texto);
+
+        while (i < tamanho) {
+            var c = texto[i];
+            var inicio = i;
+            if (c == " " || c == "\t") {
+                i = i + 1;
+            } else if (c == "#") {
+                i = tamanho;
+            } else if (this.digito(c)) {
+                var numero = c;
+                i = i + 1;
+                while (i < tamanho && this.digito(texto[i])) {
+                    numero = numero + texto[i];
+                    i = i + 1;
+                }
+                if (i < tamanho && texto[i] == ".") {
+                    numero = numero + ".";
+                    i = i + 1;
+                    if (i == tamanho || !this.digito(texto[i])) {
+                        this.erro = "Decimal incompleto na coluna " + to_string(i);
+                        return false;
+                    }
+                    while (i < tamanho && this.digito(texto[i])) {
+                        numero = numero + texto[i];
+                        i = i + 1;
+                    }
+                }
+                this.registrar("NUMERO", numero, inicio + 1);
+            } else if (this.letra(c)) {
+                var nome = c;
+                i = i + 1;
+                while (i < tamanho && (this.letra(texto[i]) || this.digito(texto[i]))) {
+                    nome = nome + texto[i];
+                    i = i + 1;
+                }
+                this.registrar("IDENTIFICADOR", nome, inicio + 1);
+            } else if (c == "+" || c == "-" || c == "*" || c == "/") {
+                this.registrar("OPERADOR", c, inicio + 1);
+                i = i + 1;
+            } else if (c == "(" || c == ")") {
+                this.registrar("PARENTESE", c, inicio + 1);
+                i = i + 1;
+            } else if (c == "=") {
+                this.registrar("ATRIBUICAO", c, inicio + 1);
+                i = i + 1;
+            } else {
+                this.erro = "Caractere invalido '" + c + "' na coluna " + to_string(inicio + 1);
+                return false;
+            }
+        }
+        this.registrar("FIM", "", tamanho + 1);
+        return true;
+    }
+}
+
+seq {
+    var texto = input();
+    var lexer = new TokenizadorExpressao();
+    if (lexer.analisar(texto)) {
+        var i = 0;
+        while (i < len(lexer.tipos)) {
+            print(lexer.colunas[i], lexer.tipos[i], lexer.lexemas[i]);
+            i = i + 1;
+        }
+    } else {
+        print("Erro lexico:", lexer.erro);
+    }
+}
