@@ -5,10 +5,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 
 from componente_lexico import C_Lexico, ILexico
+from componente_semantico import C_Semantico, ISemantico
+from componente_sintatico import C_Sintatico, ISintatico
+from componente_tac import C_TAC, ITAC
 from lexer import LexError, TokenType
-from parser import Parser
-from semantic import SemanticAnalyzer
-from tac import TACGenerator
+from parser import ParseError
 from codegen import CppCodeGenerator
 
 def compile_file(source_path: str, output_name: str) -> bool:
@@ -34,18 +35,23 @@ def compile_file(source_path: str, output_name: str) -> bool:
             print(f"[ERRO LEXICO] Linha {token.line}, coluna {token.col}: Caractere nao reconhecido: {token.lexeme!r}", file=sys.stderr)
         return False
 
-    parser  = Parser(tokens)
-    program = parser.parse()
+    sintatico: ISintatico = C_Sintatico()
+    try:
+        program = sintatico.analise_sintatica(tokens)
+    except ParseError as error:
+        print(f"[ERRO SINTATICO] Linha {error.line}, coluna {error.col}: {error}", file=sys.stderr)
+        return False
 
     print("[Fase 2] Analise Semantica e Tabela de Simbolos...")
-    semantic = SemanticAnalyzer()
-    if not semantic.analyze(program):
+    semantico: ISemantico = C_Semantico(emitir_diagnosticos=True)
+    validacao = semantico.analise_semantica(program)
+    if not validacao.sucesso:
         print("[ERRO] Falha na Analise Semantica. Compilacao abortada.", file=sys.stderr)
         return False
 
     print("[Fase 3] Geracao de Codigo Intermediario (TAC - 3 enderecos)...")
-    tac = TACGenerator()
-    tac_path = tac.generate(program, output_name)
+    tac: ITAC = C_TAC()
+    tac_path = tac.gerar_arquivo(program, output_name)
     print(f"[TAC] Arquivo gerado: {tac_path}")
 
     print("[Fase 4] Transpilacao e Chamada do GCC (-O3)...")

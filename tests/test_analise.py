@@ -111,7 +111,7 @@ class AnaliseTests(unittest.TestCase):
                     self.assertNotIn('Traceback', process.stderr)
 
     def test_unimplemented_tac_keeps_previous_phases(self):
-        with patch('analise.TACGenerator.generate_text', side_effect=NotImplementedError('teste')):
+        with patch('componente_tac.TACGenerator.generate_text', side_effect=NotImplementedError('teste')):
             result = analisar('seq {}')
         self.assertTrue(result['semantica']['sucesso'])
         self.assertEqual(result['erros'][0]['fase'], 'tac')

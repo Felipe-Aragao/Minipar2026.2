@@ -1,10 +1,11 @@
 """Contrato de análise para a Web didática, sem arquivos, GCC ou execução.
 """
 from componente_lexico import C_Lexico, ILexico
+from componente_semantico import C_Semantico, ISemantico
+from componente_sintatico import C_Sintatico, ISintatico
+from componente_tac import C_TAC, ITAC
 from lexer import LexError, TokenType
-from parser import Parser, ParseError
-from semantic import SemanticAnalyzer
-from tac import TACGenerator
+from parser import ParseError
 
 
 def analisar(codigo: str) -> dict:
@@ -36,20 +37,22 @@ def analisar(codigo: str) -> dict:
             return resultado
 
         fase = "sintatica"
-        programa = Parser(tokens, raise_errors=True).parse()
+        sintatico: ISintatico = C_Sintatico()
+        programa = sintatico.analise_sintatica(tokens)
         resultado["ast"] = programa.to_dict()
 
         fase = "semantica"
-        semantico = SemanticAnalyzer(emit_diagnostics=False)
-        sucesso = semantico.analyze(programa)
-        resultado["semantica"]["sucesso"] = sucesso
-        resultado["simbolos"] = semantico.symbols
-        resultado["erros"].extend(semantico.errors)
-        if not sucesso:
+        semantico: ISemantico = C_Semantico()
+        validacao = semantico.analise_semantica(programa)
+        resultado["semantica"]["sucesso"] = validacao.sucesso
+        resultado["simbolos"] = validacao.simbolos
+        resultado["erros"].extend(validacao.erros)
+        if not validacao.sucesso:
             return resultado
 
         fase = "tac"
-        resultado["tac"] = TACGenerator().generate_text(programa)
+        gerador: ITAC = C_TAC()
+        resultado["tac"] = gerador.gerar_texto(programa)
     except (LexError, ParseError) as erro:
         resultado["erros"].append({"fase": fase, "linha": erro.line,
                                     "coluna": erro.col, "mensagem": str(erro)})
