@@ -5,6 +5,39 @@ from typing import List, Optional
 class ASTNode:
     line: int = 1
 
+    def to_dict(self) -> dict:
+        """Serializa o nó da AST e todos os seus filhos para JSON (Dicionário)."""
+        result = {"node_type": self.__class__.__name__, "line": getattr(self, "line", 1)}
+        for key, value in vars(self).items():
+            if key == "line": 
+                continue
+            if isinstance(value, ASTNode):
+                result[key] = value.to_dict()
+            elif isinstance(value, list):
+                result[key] = [v.to_dict() if isinstance(v, ASTNode) else v for v in value]
+            else:
+                result[key] = value
+        return result
+
+
+@dataclass
+class Destino(ASTNode):
+    tipo: str  # "core" ou "host"
+    args: List[ASTNode]
+    line: int = 1
+
+@dataclass
+class ForkStmt(ASTNode):
+    destino: Destino
+    body: ASTNode
+    line: int = 1
+
+@dataclass
+class JoinStmt(ASTNode):
+    args: List[ASTNode] = field(default_factory=list)
+    line: int = 1
+
+
 @dataclass
 class NumberExpr(ASTNode):
     value: str

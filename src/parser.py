@@ -7,13 +7,30 @@ from ast_nodes import (
     BinaryExpr, UnaryExpr, NumberExpr, StringExpr, BoolExpr, IdentifierExpr, IfStmt, WhileStmt,
     DoWhileStmt, ForStmt, BreakStmt, ContinueStmt, InputExpr,
     ClassDecl, FuncDecl, ReturnStmt, MethodCall, FuncCallExpr, PropertyAccess, PropertyAssign, NewExpr, ThisExpr,
-    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
+    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign,
+    ForkStmt, JoinStmt, Destino  
 )
 
+class ParseError(Exception):
+    """Erro sintático com posição, consumível por interfaces sem encerrar o processo."""
+    def __init__(self, message: str, token: Token) -> None:
+        super().__init__(message)
+        self.line = token.line
+        self.col = token.col
+
+
 class Parser:
-    def __init__(self, tokens: List[Token]) -> None:
+    def __init__(self, tokens: List[Token], *, raise_errors: bool = False) -> None:
         self._tokens = tokens
+        self._raise_errors = raise_errors
         self._pos = 0
+
+    def _error(self, message: str, token: Token = None) -> None:
+        token = token or self._peek()
+        if self._raise_errors:
+            raise ParseError(message, token)
+        print(f"[ERRO SINTATICO] Linha {token.line}: {message}", file=sys.stderr)
+        sys.exit(1)
 
     def _peek(self) -> Token:
         if self._pos >= len(self._tokens): return self._tokens[-1]
@@ -33,8 +50,7 @@ class Parser:
     def _consume(self, token_type: TokenType, err_msg: str) -> Token:
         if self._peek().type == token_type: return self._advance()
         tok = self._peek()
-        print(f"[ERRO SINTATICO] Linha {tok.line}: {err_msg} (Encontrado: {tok.lexeme!r})", file=sys.stderr)
-        sys.exit(1)
+        self._error(f"{err_msg} (Encontrado: {tok.lexeme!r})", tok)
 
     def _parse_var_decl(self, declared_type: str = "var", require_semicolon: bool = True) -> ASTNode:
         node = VarDecl(name="")
@@ -54,7 +70,7 @@ class Parser:
         if isinstance(target, IdentifierExpr): return Assignment(name=target.name, value=val, line=target.line)
         if isinstance(target, PropertyAccess): return PropertyAssign(object=target.object, property_name=target.property_name, value=val, line=target.line)
         if isinstance(target, IndexExpr): return IndexAssign(target=target, value=val, line=target.line)
-        sys.exit(print(f"[ERRO] Linha {target.line}: Atribuicao invalida", file=sys.stderr) or 1)
+        self._error("Atribuicao invalida")
 
     def _parse_print_stmt(self) -> ASTNode:
         node = PrintStmt()
@@ -93,6 +109,45 @@ class Parser:
             node.statements.append(self._parse_statement())
         self._consume(TokenType.RBRACE, "Esperado '}' para fechar bloco PAR")
         return node
+        
+    # Analisador Sintático para Fork
+    def _parse_fork(self) -> ASTNode:
+        line = self._tokens[self._pos - 1].line
+        destino_obj = None
+
+        if self._match(TokenType.CORE):
+            self._consume(TokenType.LPAREN, "Esperado '(' apos 'core'")
+            destino_args = [self._parse_expression()]
+            self._consume(TokenType.RPAREN, "Esperado ')' apos argumento do 'core'")
+            destino_obj = Destino(tipo="core", args=destino_args, line=line)
+        elif self._match(TokenType.HOST):
+            self._consume(TokenType.LPAREN, "Esperado '(' apos 'host'")
+            destino_args = [self._parse_expression()]
+            if self._match(TokenType.COMMA):
+                destino_args.append(self._parse_expression())
+            self._consume(TokenType.RPAREN, "Esperado ')' apos argumentos do 'host'")
+            destino_obj = Destino(tipo="host", args=destino_args, line=line)
+            
+        # O corpo do fork pode ser um bloco ou uma expressão direta (como chamada de função)
+        if self._peek().type == TokenType.LBRACE:
+            body = self._parse_seq_block()
+        else:
+            body = self._parse_expression()
+            
+        return ForkStmt(destino=destino_obj, body=body, line=line)
+
+    # Analisador Sintático para Join
+    def _parse_join(self) -> ASTNode:
+        line = self._tokens[self._pos - 1].line
+        args = []
+        if self._match(TokenType.LPAREN):
+            if self._peek().type != TokenType.RPAREN:
+                args.append(self._parse_expression())
+                while self._match(TokenType.COMMA):
+                    args.append(self._parse_expression())
+            self._consume(TokenType.RPAREN, "Esperado ')' apos parametros do join")
+            
+        return JoinStmt(args=args, line=line)
 
     def _parse_if_stmt(self) -> ASTNode:
         line = self._tokens[self._pos - 1].line
@@ -220,6 +275,18 @@ class Parser:
             if self._peek().type == TokenType.SEQ: self._advance()
             return self._parse_seq_block()
         if self._match(TokenType.PAR): return self._parse_par_block()
+        
+        # Inserção das novas instruções como comandos independentes
+        if self._match(TokenType.FORK):
+            node = self._parse_fork()
+            if not isinstance(node.body, SeqBlock):
+                self._consume(TokenType.SEMICOLON, "Esperado ';' apos instrucao fork")
+            return node
+        if self._match(TokenType.JOIN):
+            node = self._parse_join()
+            self._consume(TokenType.SEMICOLON, "Esperado ';' apos join")
+            return node
+            
         if self._match(TokenType.PRINT): return self._parse_print_stmt()
         if self._match(TokenType.SEND): return self._parse_send_stmt()
         if self._match(TokenType.IF): return self._parse_if_stmt()
@@ -234,10 +301,10 @@ class Parser:
             elif isinstance(expr, (MethodCall, FuncCallExpr)):
                 self._consume(TokenType.SEMICOLON, "Esperado ';'")
                 return expr
-            sys.exit(print(f"[ERRO] Linha {expr.line}: Instrucao ou expressao isolada invalida", file=sys.stderr) or 1)
+            self._error("Instrucao ou expressao isolada invalida")
 
         tok = self._peek()
-        sys.exit(print(f"[ERRO SINTATICO] Linha {tok.line}: Instrucao nao reconhecida: {tok.lexeme!r}", file=sys.stderr) or 1)
+        self._error(f"Instrucao nao reconhecida: {tok.lexeme!r}", tok)
 
     def _parse_expression(self) -> ASTNode:
         return self._parse_or()
@@ -345,6 +412,13 @@ class Parser:
             node = NewExpr(class_name=class_name, arguments=args, line=line)
         elif self._match(TokenType.THIS):
             node = ThisExpr(line=tok.line)
+            
+        # Inserção das novas instruções como expressões avaliadas    
+        elif self._match(TokenType.FORK):
+            node = self._parse_fork()
+        elif self._match(TokenType.JOIN):
+            node = self._parse_join()
+            
         elif self._match(TokenType.NUMBER):
             node = NumberExpr(value=tok.lexeme, line=tok.line)
         elif self._match(TokenType.STRING_LITERAL):
@@ -366,7 +440,7 @@ class Parser:
             node = self._parse_expression()
             self._consume(TokenType.RPAREN, "Esperado ')'")
         else:
-            sys.exit(print(f"[ERRO SINTATICO] Linha {tok.line}: Expressao esperada", file=sys.stderr) or 1)
+            self._error("Expressao esperada", tok)
 
         while True:
             if self._match(TokenType.DOT):

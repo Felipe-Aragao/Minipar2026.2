@@ -1,0 +1,10 @@
+Texto: 12+3
+Comparacoes: 1 1 1
+Edicao: 92+3
+Metodo: novo!
+Retornos: sim nao
+Declaracao: ok 3 ab
+Conversoes: 12.5 -3 2 7
+Tokens: [12, *, 3, fim] 4 1
+Numeros: [4, 2.5, 3]
+Matriz: 5

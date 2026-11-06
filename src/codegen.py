@@ -8,7 +8,7 @@ from ast_nodes import (
     UnaryExpr, NumberExpr, StringExpr, BoolExpr, IdentifierExpr, IfStmt, WhileStmt,
     DoWhileStmt, ForStmt, BreakStmt, ContinueStmt, InputExpr,
     ClassDecl, FuncDecl, ReturnStmt, MethodCall, FuncCallExpr, PropertyAccess, PropertyAssign, NewExpr, ThisExpr,
-    CChannelExpr, SendStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
+    CChannelExpr, SendStmt,ForkStmt,JoinStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
 )
 from cpp_template import _CPP_HEADER
 
@@ -27,7 +27,7 @@ class CppCodeGenerator:
     def _translate_expression(self, node: Optional[ASTNode]) -> str:
         if node is None: return "0"
         if isinstance(node, NumberExpr): return node.value
-        if isinstance(node, StringExpr): return f'"{self._escape_string(node.value)}"'
+        if isinstance(node, StringExpr): return f'std::string("{self._escape_string(node.value)}")'
         if isinstance(node, BoolExpr): return "true" if node.value else "false"
         if isinstance(node, IdentifierExpr): return node.name
         if isinstance(node, UnaryExpr): return f"({node.op}{self._translate_expression(node.operand)})"
@@ -62,10 +62,16 @@ class CppCodeGenerator:
                 return f"__minipar_range({args})"
             if node.name == "to_number":
                 return f"std::stod({args})"
+            if node.name == "to_string":
+                return f"__to_string({args})"
+            if node.name == "to_int":
+                return f"__to_int({args})"
             if node.name == "parse_ints":
                 return f"__parse_ints({args})"
+            if node.name == "fmt":
+                return f"__fmt({args})"
             return f"{node.name}({args})"
-
+           
         if isinstance(node, CChannelExpr):
             ip = self._translate_expression(node.ip)
             port = self._translate_expression(node.port)
@@ -79,7 +85,7 @@ class CppCodeGenerator:
 
         if isinstance(node, ListLiteral):
             elems = ", ".join(self._translate_expression(e) for e in node.elements)
-            return f"std::vector<double>{{{elems}}}"
+            return f"__make_list({elems})"
         if isinstance(node, MatrixCreateExpr):
             r = self._translate_expression(node.rows)
             c = self._translate_expression(node.cols)
@@ -88,7 +94,7 @@ class CppCodeGenerator:
         if isinstance(node, IndexExpr):
             obj = self._translate_expression(node.object)
             idx = self._translate_expression(node.index)
-            return f"{obj}[{idx}]"
+            return f"__index({obj}, {idx})"
 
         return "0"
 
@@ -134,7 +140,7 @@ class CppCodeGenerator:
     def _translate_statement(self, node: Optional[ASTNode], indent: str = "") -> str:
         if node is None: return ""
         if isinstance(node, VarDecl):
-            expr = self._translate_expression(node.init_value) if node.init_value else "0"
+            expr = self._translate_expression(node.init_value) if node.init_value else ('std::string()' if node.type == "string" else "0")
             return f"{indent}auto {node.name} = {expr};\n"
         if isinstance(node, Assignment):
             return f"{indent}{node.name} = {self._translate_expression(node.value)};\n"
@@ -142,8 +148,7 @@ class CppCodeGenerator:
             obj = self._translate_expression(node.object)
             return f"{indent}{obj}->{node.property_name} = {self._translate_expression(node.value)};\n"
         if isinstance(node, IndexAssign):
-            tgt = self._translate_expression(node.target)
-            return f"{indent}{tgt} = {self._translate_expression(node.value)};\n"
+            return f"{indent}{self._translate_index_assignment(node)};\n"
         
         if isinstance(node, (MethodCall, FuncCallExpr)):
             return f"{indent}{self._translate_expression(node)};\n"
@@ -159,6 +164,11 @@ class CppCodeGenerator:
             chan = self._translate_expression(node.channel)
             msg = self._translate_expression(node.message)
             return f"{indent}{chan}->sendData(__to_string({msg}));\n"
+    
+        if isinstance(node, ForkStmt):
+            raise NotImplementedError("[ERRO] Instrução 'fork' ainda não suportada no Back-end pelo gerador C++.")
+        if isinstance(node, JoinStmt):
+            raise NotImplementedError("[ERRO] Instrução 'join' ainda não suportada no Back-end pelo gerador C++.")
 
         if isinstance(node, PrintStmt):
             parts = []
@@ -214,15 +224,20 @@ class CppCodeGenerator:
     def _translate_for_part(self, node: Optional[ASTNode]) -> str:
         if node is None: return ""
         if isinstance(node, VarDecl):
-            expr = self._translate_expression(node.init_value) if node.init_value else "0"
+            expr = self._translate_expression(node.init_value) if node.init_value else ('std::string()' if node.type == "string" else "0")
             return f"auto {node.name} = {expr}"
         if isinstance(node, Assignment):
             return f"{node.name} = {self._translate_expression(node.value)}"
         if isinstance(node, PropertyAssign):
             return f"{self._translate_expression(node.object)}->{node.property_name} = {self._translate_expression(node.value)}"
         if isinstance(node, IndexAssign):
-            return f"{self._translate_expression(node.target)} = {self._translate_expression(node.value)}"
+            return self._translate_index_assignment(node)
         return self._translate_expression(node)
+
+    def _translate_index_assignment(self, node: IndexAssign) -> str:
+        return (f"__set_index({self._translate_expression(node.target.object)}, "
+                f"{self._translate_expression(node.target.index)}, "
+                f"{self._translate_expression(node.value)})")
 
     def generate(self, program: Program, output_name: str) -> bool:
         cpp_code = _CPP_HEADER
