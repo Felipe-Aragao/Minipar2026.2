@@ -1,6 +1,7 @@
 """Contrato de análise para a Web didática, sem arquivos, GCC ou execução.
 """
-from lexer import Lexer, LexError, TokenType
+from componente_lexico import C_Lexico, ILexico
+from lexer import LexError, TokenType
 from parser import Parser, ParseError
 from semantic import SemanticAnalyzer
 from tac import TACGenerator
@@ -20,7 +21,8 @@ def analisar(codigo: str) -> dict:
 
     fase = "lexica"
     try:
-        tokens = Lexer(codigo).tokenize()
+        lexico: ILexico = C_Lexico()
+        tokens = lexico.analise_lexica(codigo)
         resultado["tokens"] = [
             {"tipo": t.type.name, "lexema": t.lexeme, "linha": t.line, "coluna": t.col}
             for t in tokens

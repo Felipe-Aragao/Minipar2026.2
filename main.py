@@ -4,7 +4,8 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 
-from lexer import Lexer, LexError, TokenType
+from componente_lexico import C_Lexico, ILexico
+from lexer import LexError, TokenType
 from parser import Parser
 from semantic import SemanticAnalyzer
 from tac import TACGenerator
@@ -21,9 +22,9 @@ def compile_file(source_path: str, output_name: str) -> bool:
         return False
 
     print("[Fase 1] Analise Lexica e Sintatica...")
-    lexer  = Lexer(source_code)
+    lexico: ILexico = C_Lexico()
     try:
-        tokens = lexer.tokenize()
+        tokens = lexico.analise_lexica(source_code)
     except LexError as error:
         print(f"[ERRO LEXICO] Linha {error.line}, coluna {error.col}: {error}", file=sys.stderr)
         return False
