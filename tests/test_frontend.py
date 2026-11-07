@@ -1,7 +1,9 @@
 """Casos de integração das fases do front-end, sem compilar C++."""
 from pathlib import Path
 import re
+import subprocess
 import sys
+import tempfile
 
 import pytest
 
@@ -116,3 +118,77 @@ def test_len_tambem_valida_identificadores_dos_argumentos():
     resultado = analisar("seq { print(len(inexistente)); }")
     assert resultado["semantica"]["sucesso"] is False
     assert any("nao declarada" in erro["mensagem"] for erro in resultado["erros"])
+
+
+@pytest.mark.parametrize(
+    "marcado",
+    [
+        "seq { print(§faltando); }",
+        "seq { §faltando = 3; }",
+        'seq { number §x = "abc"; }',
+        "seq { var x = 1; var §x = 2; }",
+        "func f(a, b) { return a + b; } seq { print(§f(1)); }",
+        "seq { print(§len()); }",
+        'seq { var x = "s" §* 2; }',
+        "seq { §fork core(1.5) { print(1); } }",
+        "seq { §join(1); }",
+        "class C { var x = 1; } seq { var c = new C(); print(c.§y); }",
+        "class C { func f(a) {} } seq { var c = new C(); c.§f(); }",
+        "seq {\n    §break;\n}",
+        "seq {\n\t§continue;\n}",
+        "seq { var c = §new Desconhecida(); }",
+        "func f(a,\n    §a) {}",
+        "seq { var a = [1]; fork { a.§append(2); } join; }",
+        'seq { var texto = "á"; print(§faltando); }',
+    ],
+)
+def test_diagnostico_semantico_aponta_o_token_responsavel(marcado):
+    antes, depois = marcado.split("§")
+    codigo = antes + depois
+    resultado = analisar(codigo)
+    assert len(resultado["erros"]) == 1
+    erro = resultado["erros"][0]
+    assert erro["fase"] == "semantica"
+    assert erro["linha"] == antes.count("\n") + 1
+    assert erro["coluna"] == len(antes.rsplit("\n", 1)[-1]) + 1
+
+
+def test_ast_e_simbolos_preservam_posicoes_de_declaracao():
+    resultado = analisar("seq {\n    var x = 1;\n}")
+    declaracao = resultado["ast"]["statements"][0]["statements"][0]
+    assert (declaracao["line"], declaracao["col"]) == (2, 9)
+    assert (declaracao["init_value"]["line"], declaracao["init_value"]["col"]) == (2, 13)
+    assert (resultado["simbolos"][0]["linha"], resultado["simbolos"][0]["coluna"]) == (2, 9)
+
+
+def test_ast_criada_sem_coluna_continua_aceita():
+    from ast_nodes import IdentifierExpr, PrintStmt, Program
+    from componente_semantico import C_Semantico
+
+    programa = Program(statements=[PrintStmt(arguments=[IdentifierExpr("x", 4)])])
+    resultado = C_Semantico().analise_semantica(programa)
+    assert resultado.sucesso is False
+    assert resultado.erros[0]["linha"] == 4
+    assert resultado.erros[0]["coluna"] is None
+
+
+def test_coluna_do_iterador_na_tabela_de_simbolos():
+    codigo = "seq { for (var item in [1, 2]) { print(item); } }"
+    resultado = analisar(codigo)
+    simbolo = next(s for s in resultado["simbolos"] if s["nome"] == "item")
+    assert simbolo["coluna"] == codigo.index("item") + 1
+
+
+def test_terminal_exibe_linha_e_coluna_do_erro_semantico():
+    root = Path(__file__).resolve().parents[1]
+    with tempfile.TemporaryDirectory(dir=root) as folder:
+        fonte = Path(folder) / "erro_semantico.minipar"
+        fonte.write_text("seq {\n    print(faltando);\n}", encoding="utf-8")
+        processo = subprocess.run(
+            [sys.executable, str(root / "main.py"), str(fonte)],
+            cwd=root, capture_output=True, text=True, encoding="utf-8",
+            errors="replace", timeout=10,
+        )
+    assert processo.returncode == 1
+    assert "[ERRO SEMANTICO] Linha 2, coluna 11" in processo.stderr
+    assert "Traceback" not in processo.stderr

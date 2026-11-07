@@ -1214,8 +1214,11 @@ O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 | `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
 
 A API preserva os resultados das fases concluídas e registra linha e coluna nos
-erros léxicos e sintáticos. A coluna dos erros semânticos permanece indisponível
-na AST atual. O TAC representa subtarefas em blocos `FORK`/`END_TASK`, com
+erros léxicos, sintáticos e semânticos. Os nós da AST expõem `line` e `col`;
+declarações na tabela de símbolos também incluem `linha` e `coluna`. As posições
+começam em 1 e contam caracteres do código fonte, incluindo tabulações como um
+caractere. Nós construídos diretamente por integrações antigas podem ter `col`
+igual a `null` quando a posição original estiver indisponível. O TAC representa subtarefas em blocos `FORK`/`END_TASK`, com
 `END_TASK operando` quando o corpo é uma expressão. `JOIN ALL` representa a
 sincronização sem argumentos.
 
