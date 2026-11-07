@@ -1,0 +1,105 @@
+# Teste 8: Avaliacao de Atividades com 4 Nucleos Dedicados (Professor e 3 Monitores)
+
+# --- 1. Simulacao de Carga de CPU por Atividade ---
+func simular_atraso(segundos) {
+    var iteracoes = to_int(segundos * 20000000);
+    var soma = 0;
+    var i = 0;
+    while (i < iteracoes) {
+        soma = (soma * 3 + i) % 1000000007;
+        i = i + 1;
+    }
+    return soma;
+}
+
+# --- 2. Funcao de Trabalho dos Nucleos (Lote de Atividades) ---
+func avaliar_lote(avaliador, inicio_idx, fim_idx) {
+    var concluidas = 0;
+    var soma_controle = 0;
+    var i = inicio_idx;
+    while (i < fim_idx) {
+        soma_controle = soma_controle + simular_atraso(0.1);
+        if (soma_controle != 999999999) {
+            concluidas = concluidas + 1;
+        }
+        i = i + 1;
+    }
+    return concluidas;
+}
+
+# --- 3. Programa Principal e Benchmark ---
+seq {
+    var NUM_ALUNOS = 40;
+    var ATIVIDADES_POR_ALUNO = 4;
+    var TOTAL_ATIVIDADES = NUM_ALUNOS * ATIVIDADES_POR_ALUNO;
+
+    print("Total de Atividades a Avaliar:", TOTAL_ATIVIDADES, "(40 alunos x 4 atividades)");
+    print("");
+
+    # --- 3.1 Execucao Sequencial (Apenas 1 Nucleo / Professor) ---
+    print("--- 1. Executando Modo Sequencial (Apenas 1 Núcleo / Professor) ---");
+    var t0_seq = time();
+
+    var seq_total = avaliar_lote("Professor", 0, TOTAL_ATIVIDADES);
+
+    var t1_seq = time();
+    var tempo_seq = t1_seq - t0_seq;
+    print("Tempo Sequencial Concluido em:", fmt(tempo_seq, 2), "segundos");
+    print("");
+
+    # --- 3.2 Execucao Paralela com 4 Nucleos Dedicados (Fork & Join) ---
+    print("--- 2. Executando Modo Paralelo (4 Núcleos Dedicados: Professor + 3 Monitores) ---");
+    var t0_par = time();
+
+    # Divisao das 160 tarefas em 4 lotes iguais de 40 tarefas:
+    # Core 0: Professor (0 a 39)
+    # Core 1: Monitor 1 (40 a 79)
+    # Core 2: Monitor 2 (80 a 119)
+    # Core 3: Monitor 3 (120 a 159)
+    var t_prof = fork core(0) avaliar_lote("Professor", 0, 40);
+    var t_mon1 = fork core(1) avaliar_lote("Monitor 1", 40, 80);
+    var t_mon2 = fork core(2) avaliar_lote("Monitor 2", 80, 120);
+    var t_mon3 = fork core(3) avaliar_lote("Monitor 3", 120, 160);
+
+    # Sincronizacao e coleta dos resultados com Join
+    var r_prof = join(t_prof);
+    var r_mon1 = join(t_mon1);
+    var r_mon2 = join(t_mon2);
+    var r_mon3 = join(t_mon3);
+
+    var par_total = r_prof + r_mon1 + r_mon2 + r_mon3;
+
+    var t1_par = time();
+    var tempo_par = t1_par - t0_par;
+    print("Tempo Paralelo Concluido em:  ", fmt(tempo_par, 2), "segundos");
+    print("");
+
+    print("Atividades avaliadas por lote:");
+    print("  Professor :", r_prof);
+    print("  Monitor 1 :", r_mon1);
+    print("  Monitor 2 :", r_mon2);
+    print("  Monitor 3 :", r_mon3);
+    print("Total Paralelo  :", par_total);
+    print("Total Sequencial:", seq_total);
+    print("");
+
+    if (seq_total != 160 || par_total != 160 || seq_total != par_total) {
+        print("Erro: contagem divergente de atividades!");
+    } else {
+        print("Validacao: 160 atividades avaliadas com sucesso em ambos os modos.");
+    }
+    print("");
+
+    # --- 3.3 Metricas do Benchmark de Desempenho ---
+    var speedup = tempo_seq / tempo_par;
+    var reducao_pct = ((tempo_seq - tempo_par) / tempo_seq) * 100;
+
+    print("==========================================");
+    print("         BENCHMARK DE DESEMPENHO          ");
+    print("==========================================");
+    print("Tempo Sequencial :", fmt(tempo_seq, 2), "s");
+    print("Tempo Paralelo   :", fmt(tempo_par, 2), "s");
+    print("Aceleração       :", fmt(speedup, 2) + "x mais rápido!");
+    print("Redução no tempo :", fmt(reducao_pct, 1) + "% de economia");
+    print("==========================================");
+}

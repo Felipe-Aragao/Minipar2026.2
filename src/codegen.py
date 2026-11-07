@@ -72,6 +72,10 @@ class CppCodeGenerator:
                 return f"__parse_ints({args})"
             if node.name == "fmt":
                 return f"__fmt({args})"
+            if node.name == "save_bmp":
+                return f"__minipar_save_bmp({args})"
+            if node.name == "launch_file":
+                return f"__minipar_launch_file({args})"
             return f"{node.name}({args})"
            
         if isinstance(node, CChannelExpr):
@@ -334,7 +338,7 @@ class CppCodeGenerator:
                     else:
                         cpp_code += f"    double {attr.name} = 0;\n"
                 for method in node.methods:
-                    params = ", ".join(f"auto {p}" for p in method.params)
+                    params = ", ".join(f"auto&& {p}" for p in method.params)
                     ret = self._return_type(method.body)
                     cpp_code += f"    {ret} {method.name}({params}) {{\n"
                     if isinstance(method.body, SeqBlock):
@@ -343,7 +347,7 @@ class CppCodeGenerator:
                     cpp_code += "    }\n"
                 cpp_code += "};\n\n"
             elif isinstance(node, FuncDecl):
-                params = ", ".join(f"auto {p}" for p in node.params)
+                params = ", ".join(f"auto&& {p}" for p in node.params)
                 ret = self._return_type(node.body)
                 cpp_code += f"{ret} {node.name}({params}) {{\n"
                 if isinstance(node.body, SeqBlock):
@@ -351,7 +355,7 @@ class CppCodeGenerator:
                 else: cpp_code += self._translate_statement(node.body, "    ")
                 cpp_code += "}\n\n"
 
-        cpp_code += "int main() {\n    #ifdef _WIN32\n        WSADATA wsa;\n        WSAStartup(MAKEWORD(2,2), &wsa);\n    #endif\n\n"
+        cpp_code += "int main() {\n    #ifdef _WIN32\n        SetConsoleOutputCP(CP_UTF8);\n        SetConsoleCP(CP_UTF8);\n        WSADATA wsa;\n        WSAStartup(MAKEWORD(2,2), &wsa);\n    #endif\n\n"
         for node in program.statements:
             if not isinstance(node, (ClassDecl, FuncDecl)):
                 if isinstance(node, SeqBlock):

@@ -140,6 +140,8 @@ def test_len_tambem_valida_identificadores_dos_argumentos():
         "func f(a,\n    §a) {}",
         "seq { var a = [1]; fork { a.§append(2); } join; }",
         'seq { var texto = "á"; print(§faltando); }',
+        "seq {\n    §save_bmp();\n}",
+        "seq {\n    §launch_file();\n}",
     ],
 )
 def test_diagnostico_semantico_aponta_o_token_responsavel(marcado):
