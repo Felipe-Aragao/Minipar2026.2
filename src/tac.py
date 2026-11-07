@@ -132,8 +132,11 @@ class TACGenerator:
         
         # Corpo isolado da subtarefa
         self._emit(f"{lbl_fork_start}:")
-        self._stmt(node.body)
-        self._emit("END_TASK")
+        if isinstance(node.body, (SeqBlock, ParBlock)):
+            self._stmt(node.body)
+            self._emit("END_TASK")
+        else:
+            self._emit(f"END_TASK {self._expr(node.body)}")
         
         # Ponto de retomada da thread principal
         self._emit(f"{lbl_fork_end}:")

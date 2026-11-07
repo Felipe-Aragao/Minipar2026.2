@@ -107,6 +107,19 @@ Os arquivos gerados (`.cpp`, `.tac` e executáveis) serão armazenados na pasta 
 | 3 | `tac.py` | Geração de Código Intermediário (TAC) |
 | 4 | `codegen.py` | Geração de código C++ e compilação automática via `g++ -O3` |
 
+## Testes do front-end
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest tests
+```
+
+A suíte verifica tokens, AST, símbolos, diagnósticos e TAC, incluindo destinos de
+`fork`, escopo e `join`. Os testes dos componentes dispensam g++ e conexões de rede.
+`test_integracao_backend.py` compila e executa casos de regressão quando g++ está
+disponível, cobrindo tarefas aninhadas, barreira, capturas, retornos e impressão de listas.
+Para compilar e executar os programas de exemplo, use `python tests/run_all.py`.
+
 ---
 
 ## Sintaxe MiniPar

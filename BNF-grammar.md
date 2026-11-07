@@ -12,9 +12,9 @@
 
 > Documento de referência da sintaxe MiniPar 2026.2. Usa notação EBNF (opcionais e repetições), mantendo o nome BNF do projeto.
 > Aceitação sintática, validação semântica e geração de executável são etapas distintas.
-> `fork`/`join` possuem representação no front-end e no TAC; sua execução em C++ ainda
-> está pendente. Afinidade de CPU, execução remota e retorno de subtarefas são objetivos
-> de implementação, não funcionalidades comprovadas pelo estado atual do compilador.
+> `fork`/`join` possuem representação no front-end e no TAC e execução local em C++.
+> O runtime usa tarefas assíncronas e barreiras por thread. A execução remota via
+> `host` permanece pendente e gera aviso de execução local.
 
 ---
 
@@ -74,7 +74,7 @@ number  int  string  bool  void  list  dict  task
 ### 2.2 Literais
 
 ```bnf
-<NUMBER>         ::= <digito> { <digito> } [ "." <digito> { <digito> } ]
+<NUMBER>         ::= <digito> { <digito> } [ "." { <digito> } ]
 <STRING_LITERAL> ::= '"' { <caractere> } '"'
 <BOOL_LITERAL>   ::= "true" | "false"
 <IDENTIFIER>     ::= ( <letra> | "_" ) { <letra> | <digito> | "_" }
@@ -139,7 +139,7 @@ task subtarefa = fork core(1) { calcular(); };
 ### 4.2 Declaração de Função
 
 ```bnf
-<declaracao_funcao> ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_seq>
+<declaracao_funcao> ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_chaves>
 
 <lista_parametros> ::= <parametro> { "," <parametro> }
 
@@ -165,8 +165,8 @@ func calcular(number x, number y) {
                             { <membro_classe> }
                         "}"
 
-<membro_classe> ::= "var" <declaracao_variavel>
-                  | "func" <declaracao_funcao>
+<membro_classe> ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
+                        | <declaracao_funcao>
 ```
 
 **Exemplos:**
@@ -246,14 +246,14 @@ print("Valor:", x, "e", y);
 ### 5.3 Comando Return
 
 ```bnf
-<comando_return> ::= "return" [ <expressao> ] ";"
+<comando_return> ::= "return" ( ";" | <expressao> [ ";" ] )
 ```
 
 ### 5.4 Comandos Break e Continue
 
 ```bnf
-<comando_break>    ::= "break" ";"
-<comando_continue> ::= "continue" ";"
+<comando_break>    ::= "break" [ ";" ]
+<comando_continue> ::= "continue" [ ";" ]
 ```
 
 > `break` e `continue` são válidos somente dentro de laços (`while`, `do-while`, `for`).
@@ -268,8 +268,7 @@ print("Valor:", x, "e", y);
 Executa os comandos internos em ordem, da mesma forma que um bloco tradicional.
 
 ```bnf
-<bloco_seq> ::= "seq" "{" { <comando> } "}"
-              | "{" { <comando> } "}"
+<bloco_seq> ::= [ "seq" ] <bloco_chaves>
 ```
 
 O `seq` é opcional: blocos com chaves `{ }` são tratados como sequenciais por padrão.
@@ -295,17 +294,17 @@ par {
 
 ### 6.3 Divisão em Subtarefas Paralelas (FORK)
 
-A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador atual reconhece essa sintaxe e gera TAC; o back-end C++ ainda precisa implementar sua execução.
+A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador reconhece essa sintaxe, gera TAC e executa as tarefas localmente com `std::async`.
 Conforme a especificação do MiniPar 2026.2, cada subtarefa criada via `fork` pode ser explicitamente alocada para:
-- **Um núcleo da CPU** (`core(<expressao>)`), com afinidade de hardware a implementar; ou
+- **Um núcleo da CPU** (`core(<expressao>)`), com solicitação de afinidade ao sistema operacional; ou
 - **Um computador diferente** (`host(<expressao> [, <expressao>])`), com despacho remoto a implementar. A existência de canais TCP não implementa, por si só, o despacho de subtarefas.
 
 O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `task` à expressão; a criação efetiva dessa referência e sua utilização em `join` dependem do back-end.
 
 ```bnf
-<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> ";" )
+<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> ";" )
 
-<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> )
+<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> )
 
 <alocacao_fork>      ::= <destino_nucleo>
                        | <destino_computador>
@@ -314,7 +313,7 @@ O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `
 
 <destino_computador> ::= "host" "(" <expressao> [ "," <expressao> ] ")"
 
-<bloco_fork>         ::= "{" { <comando> } "}"
+<bloco_chaves>         ::= "{" { <comando> } "}"
 ```
 
 **Exemplos:**
@@ -342,7 +341,7 @@ essa aceitação não garante que o back-end consiga executá-las como subtarefa
 
 ### 6.4 Sincronização e Coleta de Subtarefas (JOIN)
 
-A semântica pretendida de `join` é aguardar as subtarefas e, quando houver suporte a retorno, coletar resultados. A sincronização e a coleta ainda não estão implementadas no back-end C++.
+A semântica pretendida de `join` é aguardar as subtarefas e, quando houver suporte a retorno, coletar resultados. O runtime implementa espera e obtenção do retorno com `shared_future`.
 
 ```bnf
 <comando_join>   ::= "join" [ "(" [ <lista_argumentos> ] ")" ] ";"
@@ -350,10 +349,10 @@ A semântica pretendida de `join` é aguardar as subtarefas e, quando houver sup
 <expressao_join> ::= "join" [ "(" [ <lista_argumentos> ] ")" ]
 ```
 
-- `join;` ou `join();`: aguarda a finalização de todas as subtarefas pendentes no escopo atual.
-- `join(t1, t2, ...);` ou `join(lista_tarefas);`: aguarda a conclusão das subtarefas especificadas.
-- `var res = join(t1);`: forma sintática aceita; o resultado é inferido como `unknown`. O retorno efetivo da subtarefa ainda precisa ser implementado.
-- Como expressão, o parser também aceita `join`, `join()` e múltiplos argumentos. Isso documenta a aceitação atual; não comprova disponibilidade de valor nem execução.
+- `join;` ou `join();`: aguarda a finalização de todas as subtarefas registradas pela thread atual.
+- `join(t1, t2, ...);` aguarda as subtarefas especificadas. Listas de tarefas são rejeitadas pelo semântico.
+- `var res = join(t1);`: forma sintática aceita; o resultado é inferido como `unknown`. O runtime obtém o resultado da tarefa. Tarefas sem retorno produzem zero quando usadas como expressão.
+- Como expressão, o parser também aceita `join`, `join()` e múltiplos argumentos. Múltiplos argumentos são aguardados na ordem escrita e a expressão produz o último resultado. A barreira sem argumentos produz zero.
 
 **Exemplos:**
 
@@ -362,8 +361,8 @@ A semântica pretendida de `join` é aguardar as subtarefas e, quando houver sup
 var res1 = join(t1);
 var res2 = join(t2);
 
-# Sincronização de uma lista de subtarefas alocadas em múltiplos núcleos
-join(processos);
+# Sincronização de subtarefas individuais
+join(t1, t2);
 
 # Barreira global para todas as subtarefas disparadas no escopo
 join;
@@ -820,7 +819,7 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 |---------------|------------|-----------|
 | `print(...)` | `print(expr, ...)` | Imprime na saída padrão |
 | `input([prompt])` | `input()` / `input(expr)` | Lê linha do stdin |
-| `time()` | `time()` → `number` | Reconhecida pelo semântico; relógio para benchmarks ainda pendente no back-end |
+| `time()` | `time()` → `number` | Traduzida para `__minipar_time()`, em segundos |
 | `exp(x)` | `exp(number)` → `number` | Exponencial natural (eˣ) |
 | `random()` | `random()` → `number` | Número aleatório entre 0 e 1 |
 | `range(n)` / `range(a,b)` | `range(int)` → `list` | Gera sequência inteira |
@@ -866,7 +865,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 (* ============================================================ *)
 (*       GRAMÁTICA BNF — LINGUAGEM MINIPAR 2026.2               *)
 (*       Compilador: minipar-improvement                        *)
-(*       Repositório: github.com/luizwhirl/minipar-improvement  *)
+(*       Repositório: github.com/Felipe-Aragao/Minipar2026.2    *)
 (* ============================================================ *)
 
 
@@ -884,7 +883,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 <declaracao_variavel> ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
                         | <tipo> <IDENTIFIER> [ "=" <expressao> ] ";"
 
-<declaracao_funcao>   ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_seq>
+<declaracao_funcao>   ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_chaves>
 
 <lista_parametros>    ::= <parametro> { "," <parametro> }
 <parametro>           ::= [ <tipo> ] <IDENTIFIER>
@@ -892,8 +891,8 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 <declaracao_classe>   ::= "class" <IDENTIFIER> [ "extends" <IDENTIFIER> ]
                           "{" { <membro_classe> } "}"
 
-<membro_classe>       ::= "var" <declaracao_variavel>
-                        | "func" <declaracao_funcao>
+<membro_classe>       ::= "var" <IDENTIFIER> [ "=" <expressao> ] ";"
+                        | <declaracao_funcao>
 
 
 (* ─── COMANDOS ─── *)
@@ -923,21 +922,20 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 
 <comando_print>     ::= "print" "(" [ <expressao> { "," <expressao> } ] ")" ";"
 <comando_send>      ::= "send"  "(" <expressao> "," <expressao> ")" ";"
-<comando_return>    ::= "return" [ <expressao> ] ";"
-<comando_break>     ::= "break" ";"
-<comando_continue>  ::= "continue" ";"
+<comando_return>    ::= "return" ( ";" | <expressao> [ ";" ] )
+<comando_break>     ::= "break" [ ";" ]
+<comando_continue>  ::= "continue" [ ";" ]
 
 
 (* ─── BLOCOS E PARALELISMO (SEQ, PAR, FORK, JOIN) ─── *)
 
-<bloco_seq>          ::= "seq" "{" { <comando> } "}"
-                       | "{" { <comando> } "}"
+<bloco_seq>          ::= [ "seq" ] <bloco_chaves>
 
 <bloco_par>          ::= "par" "{" { <comando> } "}"
 
-<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> ";" )
+<comando_fork>       ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> ";" )
 
-<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_fork> | <expressao> )
+<expressao_fork>     ::= "fork" [ <alocacao_fork> ] ( <bloco_chaves> | <expressao> )
 
 <alocacao_fork>      ::= <destino_nucleo>
                        | <destino_computador>
@@ -946,7 +944,7 @@ A seguir a gramática completa em formato BNF, em ordem de definição:
 
 <destino_computador> ::= "host" "(" <expressao> [ "," <expressao> ] ")"
 
-<bloco_fork>         ::= "{" { <comando> } "}"
+<bloco_chaves>         ::= "{" { <comando> } "}"
 
 <comando_join>       ::= "join" [ "(" [ <lista_argumentos> ] ")" ] ";"
 
@@ -1125,7 +1123,7 @@ O analisador semântico (`src/semantic.py`) usa inferência simples de tipos com
 | Divisão constante por zero em `core(n)` | `Alocacao 'core' contem divisao por zero.` |
 | Escrita em variável externa ao fork | Violação de isolamento, considerando o escopo da declaração |
 | Destino inválido em `fork host(...)` | `Alocação 'host' requer canal ('c_channel') ou endereço IP ('string') e porta ('number').` |
-| Argumento inválido em `join(...)` | `'join' requer subtarefa do tipo 'task' ou lista de subtarefas.` |
+| Argumento inválido em `join(...)` | `'join' requer subtarefa do tipo 'task'.` |
 
 ### Limites atuais da validação semântica
 
@@ -1139,7 +1137,9 @@ Em `core(n)`, constantes aritméticas devem representar inteiros não negativos:
 Valores dinâmicos, faixa de núcleos e disponibilidade exigirão validação no runtime.
 `host(canal)` exige tipo de canal ou desconhecido; `host(ip, porta)` verifica tipos
 string e numérico ou desconhecidos, sem validar endereço ou faixa de porta.
-Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
+Os argumentos de `join` são verificados como `task`, `var` ou `unknown`.
+Listas são rejeitadas com diagnóstico específico. Chamadas `append`, `push_back` e
+`pop` em coleções externas também passam pela verificação de isolamento.
 
 ### Geração de Código C++20
 
@@ -1150,9 +1150,9 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 | `obj.metodo(args)` | `obj->metodo(args)` |
 | `obj.campo` | `obj->campo` |
 | `par { a; b; }` | `std::vector<std::thread>` + `emplace_back` + `join` |
-| `fork core(n) { ... }` | Pendente; comando isolado gera `NotImplementedError` |
-| `fork host(ip, porta) { ... }` | Pendente; despacho remoto não implementado |
-| `join(t)` / `join;` | Pendente; comando isolado gera `NotImplementedError` |
+| `fork core(n) { ... }` | Tarefa assíncrona com captura por valor e solicitação de afinidade |
+| `fork host(ip, porta) { ... }` | Aviso e execução local, com despacho remoto pendente |
+| `join(t)` / `join;` | Obtenção do resultado ou espera das tarefas da thread atual |
 | `c_channel(ip, porta)` | `std::make_shared<MiniParChannel>(ip, porta)` |
 | `send(canal, msg)` | `canal->sendData(__to_string(msg))` |
 | `receive(canal)` | `canal->receiveData()` |
@@ -1160,7 +1160,7 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 | `["a", "b"]` | `__make_list(...)` → `std::vector<std::string>` |
 | `s[i]` / `s[i] = "a"` | `__index` / `__set_index`, com verificação de índice |
 | `matrix(l, c, v)` | `__make_matrix(l, c, v)` |
-| `time()` | Pendente; não há tradução específica nem helper de relógio |
+| `time()` | `__minipar_time()` |
 | `exp(x)` | `std::exp(x)` |
 | `random()` | `random_val()` |
 | `to_number(s)` | `std::stod(s)` |
@@ -1173,12 +1173,13 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 
 ---
 
-### Pendências para o Teste 11 e integração
+### Teste 11 e integração
 
 O Teste 11 é um programa MiniPar que implementa um minicompilador de expressões
 infixadas. A sintaxe já contempla classes, métodos, recursão, listas, strings,
-indexação, operações aritméticas e parênteses. Ainda é necessário comprovar o
-comportamento dessas construções em conjunto no programa completo.
+indexação, operações aritméticas e parênteses. O programa de integração
+`tests/teste11_tokenizador.minipar` usa essas construções para gerar tokens, AST,
+tabela de símbolos, TAC e Assembly ARMv7, além de avaliar a expressão.
 
 Os literais string agora geram `std::string`, permitindo armazenamento em variáveis,
 atributos e retornos, comparação por conteúdo, concatenação e `len(s)`. `string s;`
@@ -1192,25 +1193,37 @@ elementos são strings geram `std::vector<std::string>`, inclusive para tokens.
 Listas heterogêneas não são suportadas. `[]` continua sendo lista numérica vazia;
 para uma lista de strings vazia, é possível inicializar `[""]` e chamar `.pop()`.
 A dedução usa os tipos C++ das expressões, não há uma nova sintaxe de tipo de lista.
-O suporte foi exercitado por `tests/test_strings.minipar`; ainda é necessário testar
-as operações em conjunto no minicompilador completo, inclusive métodos recursivos.
-Novas extensões necessárias devem ser sincronizadas entre gramática e compilador.
+O suporte foi exercitado por `tests/test_strings.minipar` e pelo Teste 11,
+que usa métodos recursivos para construir e exibir a AST.
 
-A geração de ARMv7 pelo minicompilador pode usar saída textual: não exige palavras
-reservadas Assembly no MiniPar. Salvar três saídas `.arm` e validá-las no CPUlator
-são entregas separadas. As expressões solicitadas resultam em 22, -84 e 22;
-a primeira e a terceira são iguais. Não há comprovação dessa execução nesta revisão.
+A emissão de ARMv7 é textual. Os três arquivos em `tests/arm/` deixam 22, -84 e 22
+em `r8` para os exemplos do enunciado. A primeira e a terceira expressões são iguais.
+A avaliação em MiniPar e os valores das instruções foram conferidos localmente.
+A execução e a captura de evidências no CPUlator seguem como etapa de validação.
+O emissor trabalha com inteiros de 32 bits e usa um registrador por nó até `r12`.
+Divisão e decimais fracionários são aceitos na avaliação, com diagnóstico quando
+a emissão ARMv7 estiver indisponível.
 
-Tokens, AST, símbolos, semântica e TAC estão disponíveis por `src/analise.py` para
-integração à Web didática. A criação dessa interface e a visualização da AST são
-trabalhos de interface, não produções da gramática. Os componentes I*/C_* também
-constituem uma exigência arquitetural separada da sintaxe aqui documentada.
+O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 
-**Limitação importante do gerador atual:** os bloqueios explícitos de fork/join
-estão no tratamento de comandos. Como expressões, esses nós ainda não possuem
-tradução própria e podem cair no retorno padrão `0`. Portanto, gerar C++ ou até um
-executável nesses casos não comprova execução de subtarefas; é uma pendência do
-back-end. Não utilizar esses resultados como evidência dos Testes 8 a 10.
+| Interface | Componente | Entrada e saída |
+|---|---|---|
+| `ILexico` | `C_Lexico` | Código fonte → lista de tokens |
+| `ISintatico` | `C_Sintatico` | Tokens → AST |
+| `ISemantico` | `C_Semantico` | AST → validação, símbolos e diagnósticos |
+| `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
 
----
+A API preserva os resultados das fases concluídas e registra linha e coluna nos
+erros léxicos e sintáticos. A coluna dos erros semânticos permanece indisponível
+na AST atual. O TAC representa subtarefas em blocos `FORK`/`END_TASK`, com
+`END_TASK operando` quando o corpo é uma expressão. `JOIN ALL` representa a
+sincronização sem argumentos.
 
+**Afinidade e portabilidade.** O runtime usa a API correspondente no Windows ou no
+Linux e informa falhas de afinidade. O índice é remapeado pelo número de processadores
+reportado pela máquina. Isso não garante que todos os processadores estejam permitidos
+ao processo. O comando de compilação inclui `-lws2_32` apenas no Windows.
+A validação desta integração foi executada no Windows.
+
+Cada `print` emite sua linha por um `std::osyncstream` nomeado. Isso evita misturar
+partes de linhas de threads diferentes e preserva a impressão de listas.

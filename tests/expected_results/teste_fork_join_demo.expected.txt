@@ -1,0 +1,3 @@
+Total processado via join com retorno: 2000000
+Barreira global (join;) sincronizada!
+Teste fork/join finalizado com sucesso!

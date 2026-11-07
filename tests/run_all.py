@@ -249,7 +249,8 @@ def main():
         counts[s] = counts.get(s, 0) + 1
     ordem = ["PASSOU", "FALHOU", "CRASH", "TIMEOUT", "ERRO_COMPILACAO", "SEM_VERIFICACAO"]
     print("  " + " | ".join(f"{s}: {counts[s]}" for s in ordem if s in counts) + f"  (total {len(results)})")
-    print("  [ -- ] = compilou e rodou, mas o teste nao tem saida esperada nem CHECKS")
+    if counts.get("SEM_VERIFICACAO", 0):
+        print("  [ -- ] = compilou e rodou, mas o teste nao tem saida esperada nem CHECKS")
     bad = sum(1 for _, s in results if s not in ("PASSOU", "SEM_VERIFICACAO"))
     return 1 if bad else 0
 

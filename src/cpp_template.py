@@ -2,6 +2,7 @@ _CPP_HEADER = """\
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <syncstream>
 #include <vector>
 #include <thread>
 #include <future>
@@ -16,6 +17,8 @@ _CPP_HEADER = """\
 #include <limits>
 #include <fstream>
 #include <cstdint>
+#include <mutex>
+#include <functional>
 
 #ifdef _WIN32
   #ifndef NOMINMAX
@@ -37,32 +40,77 @@ _CPP_HEADER = """\
 #endif
 
 // Helper para afinidade de nucleos da CPU (Core Affinity)
-void __set_core_affinity(int core_id) {
+inline void __set_core_affinity(int core_id) {
     if (core_id < 0) return;
+    unsigned int total_cores = std::thread::hardware_concurrency();
+    if (total_cores == 0) total_cores = 1;
+    int safe_core = core_id % static_cast<int>(total_cores);
 #ifdef _WIN32
-    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (core_id % 64));
-    SetThreadAffinityMask(GetCurrentThread(), mask);
+    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (safe_core % 64));
+    DWORD_PTR prev = SetThreadAffinityMask(GetCurrentThread(), mask);
+    if (prev == 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Windows." << std::endl;
+    }
 #elif defined(__linux__)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    CPU_SET(safe_core, &cpuset);
+    int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (ret != 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Linux (erro " << ret << ")." << std::endl;
+    }
 #endif
 }
 
-// Pool global de tarefas disparadas por fork como comando para sincronizacao com barreira (join;)
-inline std::vector<std::future<void>> __task_pool;
+// Pool de tarefas com escopo local por thread para sincronizacao segura com barreira (join;)
+inline thread_local std::vector<std::function<void()>> __task_pool;
 
-// Helper para sincronizacao de tarefas com argumentos join(t) ou join(lista_de_tarefas)
 template<typename T>
-void __minipar_join_target(std::future<T>& f) {
-    if (f.valid()) f.wait();
+std::shared_future<T> __register_task(std::future<T> fut) {
+    auto sf = fut.share();
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
+    return sf;
 }
 
 template<typename T>
-void __minipar_join_target(std::vector<T>& vec) {
-    for (auto& item : vec) {
-        __minipar_join_target(item);
+std::shared_future<T> __register_task(std::shared_future<T> sf) {
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
+    return sf;
+}
+
+inline void __task_pool_wait_all() {
+    std::vector<std::function<void()>> tasks = std::move(__task_pool);
+    __task_pool.clear();
+    for (auto& task : tasks) {
+        if (task) task();
+    }
+}
+
+// Helper para captura segura do retorno de tarefas (evita erro com tarefas de retorno void)
+template<typename Fut>
+auto __minipar_get(Fut&& f) {
+    using ResultT = decltype(f.get());
+    if constexpr (std::is_void_v<ResultT>) {
+        if (f.valid()) f.get();
+        return 0;
+    } else {
+        return f.get();
+    }
+}
+
+// Helper para sincronizacao de tarefas com argumentos join(t), temporarios join(fork ...) ou colecoes
+template<typename T>
+void __minipar_join_target(T&& target) {
+    if constexpr (requires { target.valid(); target.wait(); }) {
+        if (target.valid()) target.wait();
+    } else if constexpr (requires { std::begin(target); std::end(target); }) {
+        for (auto& item : target) {
+            __minipar_join_target(item);
+        }
     }
 }
 
