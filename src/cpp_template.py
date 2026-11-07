@@ -2,6 +2,7 @@ _CPP_HEADER = """\
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <syncstream>
 #include <vector>
 #include <thread>
 #include <future>
