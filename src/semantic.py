@@ -108,7 +108,7 @@ class SemanticAnalyzer:
         if isinstance(node, MethodCall):
             return "unknown"
         if isinstance(node, FuncCallExpr):
-            if node.name in ("random", "exp", "time", "to_number", "to_int", "len"): return "number"
+            if node.name in ("random", "exp", "time", "to_number", "to_int", "len", "save_bmp", "launch_file"): return "number"
             if node.name in ("range", "parse_ints"): return "list"
             if node.name in ("to_string", "fmt"): return "string"
             return "unknown"
@@ -342,7 +342,7 @@ class SemanticAnalyzer:
             self.validate_node(node.object)
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, FuncCallExpr):
-            nativas = ("exp", "random", "range", "len", "to_number", "parse_ints", "time", "to_int", "to_string", "fmt")
+            nativas = ("exp", "random", "range", "len", "to_number", "parse_ints", "time", "to_int", "to_string", "fmt", "save_bmp", "launch_file")
             if node.name not in self._functions and node.name not in nativas:
                 self._report(node.line, f"Funcao '{node.name}' nao declarada.")
             elif node.name in self._functions and len(self._functions[node.name].params) != len(node.arguments):
@@ -350,6 +350,10 @@ class SemanticAnalyzer:
             
             elif node.name == "fmt" and len(node.arguments) != 2:
                 self._report(node.line, f"Funcao 'fmt' espera 2 argumentos (valor, casas_decimais), recebeu {len(node.arguments)}.")
+            elif node.name == "save_bmp" and len(node.arguments) != 2:
+                self._report(node.line, f"Funcao 'save_bmp' espera 2 argumentos (caminho, matriz), recebeu {len(node.arguments)}.")
+            elif node.name == "launch_file" and len(node.arguments) != 1:
+                self._report(node.line, f"Funcao 'launch_file' espera 1 argumento (caminho), recebeu {len(node.arguments)}.")
                 
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, PropertyAccess):

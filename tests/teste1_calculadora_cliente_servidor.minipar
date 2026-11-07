@@ -1,18 +1,18 @@
-# Calcula operação aritmética recebida como string (ex.: "+", "-", "*", "/")
+# Teste 1: Calculadora cliente-servidor com sockets
+# O cliente envia operacao e operandos por canal TCP; o servidor calcula e responde.
+
 func calcular(op, v1, v2) {
-    if (op == "+") {
-        return v1 + v2;
-    }
-    if (op == "-") {
-        return v1 - v2;
-    }
-    if (op == "*") {
-        return v1 * v2;
-    }
+    if (op == "+") { return v1 + v2; }
+    if (op == "-") { return v1 - v2; }
+    if (op == "*") { return v1 * v2; }
     if (op == "/") {
+        if (v2 == 0) {
+            print("Erro: divisao por zero");
+            return 0;
+        }
         return v1 / v2;
     }
-    return 0.0;
+    return 0;
 }
 
 seq {
@@ -35,9 +35,9 @@ seq {
             var v2 = to_number(s_v2);
             print("Servidor recebeu:", op, s_v1, s_v2);
             var res = calcular(op, v1, v2);
-            send(resposta, res);
+            send(resposta, to_string(res));
         }
-        # Thread cliente: lê input do usuário e envia ao servidor
+        # Thread cliente: lê dados do terminal e envia ao servidor
         seq {
             var operacao = input("Operacao (+,-,*,/): ");
             var operando1 = input("Operando 1: ");

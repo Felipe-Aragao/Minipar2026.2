@@ -1,0 +1,159 @@
+# Teste 9: 5 Nucleos Dedicados (4 Avaliadores + 1 Fractal de Mandelbrot ASCII)
+
+# --- 1. Simulacao de Carga de CPU das Correcoes ---
+func simular_atraso(segundos) {
+    var iteracoes = to_int(segundos * 20000000);
+    var soma = 0;
+    var i = 0;
+    while (i < iteracoes) {
+        soma = (soma * 3 + i) % 1000000007;
+        i = i + 1;
+    }
+    return soma;
+}
+
+# --- 2. Tarefa dos Nucleos 0 a 3: Avaliacao de Atividades ---
+func avaliar_lote(avaliador, inicio_idx, fim_idx) {
+    var concluidas = 0;
+    var soma_controle = 0;
+    var i = inicio_idx;
+    while (i < fim_idx) {
+        soma_controle = soma_controle + simular_atraso(0.1);
+        if (soma_controle != 999999999) {
+            concluidas = concluidas + 1;
+        }
+        i = i + 1;
+    }
+    return concluidas;
+}
+
+# --- 3. Tarefa do Nucleo 4: Calculo do Fractal de Mandelbrot em Arte ASCII ---
+func gerar_mandelbrot() {
+    var largura = 50.0;
+    var altura = 20.0;
+    var max_iter = 100.0;
+    var caracteres = " .:-=+#%@";
+    var num_chars = len(caracteres);
+
+    var fractal = "";
+    var y = 0;
+    while (y < 20) {
+        var linha = "";
+        var cy = (y / altura) * 2.4 - 1.2;
+        var x = 0;
+        while (x < 50) {
+            var cx = (x / largura) * 3.0 - 2.0;
+
+            # Calibracao de carga computacional no nucleo dedicado ao fractal
+            var soma_iter = 0;
+            var s = 0;
+            while (s < 4500) {
+                var zx = 0.0;
+                var zy = 0.0;
+                var iteracao = 0;
+                while ((zx * zx + zy * zy <= 4.0) && (iteracao < max_iter)) {
+                    var tmp = zx * zx - zy * zy + cx;
+                    zy = 2.0 * zx * zy + cy;
+                    zx = tmp;
+                    iteracao = iteracao + 1;
+                }
+                soma_iter = soma_iter + iteracao;
+                s = s + 1;
+            }
+
+            var media_iter = to_int(soma_iter / 4500);
+            var char_idx = to_int((media_iter / max_iter) * (num_chars - 1));
+            if (char_idx >= num_chars) {
+                char_idx = num_chars - 1;
+            }
+            linha = linha + caracteres[char_idx];
+            x = x + 1;
+        }
+        fractal = fractal + linha + "\n";
+        y = y + 1;
+    }
+    return fractal;
+}
+
+# --- 4. Programa Principal e Benchmark ---
+seq {
+    var NUM_ALUNOS = 40;
+    var ATIVIDADES_POR_ALUNO = 4;
+    var TOTAL_ATIVIDADES = NUM_ALUNOS * ATIVIDADES_POR_ALUNO;
+
+    print("Carga de Trabalho:", TOTAL_ATIVIDADES, "atividades + 1 Cálculo de Fractal ASCII");
+    print("");
+
+    # --- 4.1 Execucao Sequencial (1 unico nucleo executa avaliacoes e fractal) ---
+    print("--- 1. Executando Modo Sequencial (Apenas 1 Núcleo) ---");
+    var t0_seq = time();
+
+    var seq_total = avaliar_lote("Professor", 0, TOTAL_ATIVIDADES);
+    var ok_seq = gerar_mandelbrot();
+
+    var t1_seq = time();
+    var tempo_seq = t1_seq - t0_seq;
+    print("Tempo Sequencial Concluido em:", fmt(tempo_seq, 2), "segundos");
+    print("");
+
+    # --- 4.2 Execucao Paralela com 5 Nucleos Dedicados ---
+    print("--- 2. Executando Modo Paralelo (5 Núcleos Dedicados) ---");
+    var t0_par = time();
+
+    # Dispara os 4 nucleos de avaliacao (cores 0 a 3) e o 5º nucleo de fractal (core 4)
+    var t_prof = fork core(0) avaliar_lote("Professor", 0, 40);
+    var t_mon1 = fork core(1) avaliar_lote("Monitor 1", 40, 80);
+    var t_mon2 = fork core(2) avaliar_lote("Monitor 2", 80, 120);
+    var t_mon3 = fork core(3) avaliar_lote("Monitor 3", 120, 160);
+    var t_frac = fork core(4) gerar_mandelbrot();
+
+    # Sincronizacao de todas as 5 subtarefas
+    var r_prof = join(t_prof);
+    var r_mon1 = join(t_mon1);
+    var r_mon2 = join(t_mon2);
+    var r_mon3 = join(t_mon3);
+    var r_frac = join(t_frac);
+
+    var par_total = r_prof + r_mon1 + r_mon2 + r_mon3;
+
+    var t1_par = time();
+    var tempo_par = t1_par - t0_par;
+    print("Tempo Paralelo Concluido em:  ", fmt(tempo_par, 2), "segundos");
+    print("");
+
+    print("Atividades avaliadas por lote:");
+    print("  Professor :", r_prof);
+    print("  Monitor 1 :", r_mon1);
+    print("  Monitor 2 :", r_mon2);
+    print("  Monitor 3 :", r_mon3);
+    print("Total Paralelo  :", par_total);
+    print("Total Sequencial:", seq_total);
+    print("");
+
+    if (seq_total != 160 || par_total != 160 || seq_total != par_total) {
+        print("Erro: contagem divergente de atividades!");
+    } else {
+        print("Validacao: 160 atividades avaliadas com sucesso em ambos os modos.");
+    }
+    print("");
+
+    # Exibe o fractal calculado pela subtarefa paralela (sem recalcular!)
+    print("=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5) ===");
+    print(r_frac);
+    print("====================================================");
+    print("");
+
+    # --- 4.3 Metricas do Benchmark de Desempenho ---
+    var speedup = tempo_seq / tempo_par;
+    var reducao_pct = ((tempo_seq - tempo_par) / tempo_seq) * 100;
+
+    print("==========================================");
+    print("         BENCHMARK DE DESEMPENHO          ");
+    print("==========================================");
+    print("Núcleos Utilizados (Paralelo) : 5");
+    print("Tempo Sequencial             :", fmt(tempo_seq, 2), "s");
+    print("Tempo Paralelo               :", fmt(tempo_par, 2), "s");
+    print("Aceleração (Speedup)         :", fmt(speedup, 2) + "x mais rápido!");
+    print("Redução de Tempo             :", fmt(reducao_pct, 1) + "%");
+    print("==========================================");
+}
