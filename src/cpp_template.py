@@ -98,26 +98,15 @@ auto __minipar_get(Fut&& f) {
     }
 }
 
-// Helper para sincronizacao de tarefas com argumentos join(t) ou join(lista_de_tarefas)
+// Helper para sincronizacao de tarefas com argumentos join(t), temporarios join(fork ...) ou colecoes
 template<typename T>
-void __minipar_join_target(std::future<T>& f) {
-    if (f.valid()) f.wait();
-}
-
-template<typename T>
-void __minipar_join_target(std::shared_future<T>& f) {
-    if (f.valid()) f.wait();
-}
-
-template<typename T>
-void __minipar_join_target(const std::shared_future<T>& f) {
-    if (f.valid()) f.wait();
-}
-
-template<typename T>
-void __minipar_join_target(std::vector<T>& vec) {
-    for (auto& item : vec) {
-        __minipar_join_target(item);
+void __minipar_join_target(T&& target) {
+    if constexpr (requires { target.valid(); target.wait(); }) {
+        if (target.valid()) target.wait();
+    } else if constexpr (requires { std::begin(target); std::end(target); }) {
+        for (auto& item : target) {
+            __minipar_join_target(item);
+        }
     }
 }
 
