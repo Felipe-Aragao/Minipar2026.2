@@ -75,3 +75,44 @@ def test_fork_ou_join_invalido_impede_geracao_de_tac(codigo, fase):
     assert resultado["erros"][0]["fase"] == fase
     assert resultado["tac"] == ""
     assert (resultado["ast"] is None) == (fase == "sintatica")
+
+
+@pytest.mark.parametrize(
+    ("chamada", "mensagem"),
+    [
+        ("len()", "espera 1 argumento, recebeu 0"),
+        ('len("a", "b")', "espera 1 argumento, recebeu 2"),
+        ("len(42)", "requer string, lista ou matriz"),
+        ("len(true)", "requer string, lista ou matriz"),
+        ('len(len("abc"))', "requer string, lista ou matriz"),
+    ],
+)
+def test_len_invalido_preserva_ast_e_impede_tac(chamada, mensagem):
+    resultado = analisar(f"seq {{\n    print({chamada});\n}}")
+    assert resultado["ast"] is not None
+    assert resultado["semantica"]["sucesso"] is False
+    assert resultado["tac"] == ""
+    assert len(resultado["erros"]) == 1
+    erro = resultado["erros"][0]
+    assert erro["fase"] == "semantica"
+    assert erro["linha"] == 2
+    assert mensagem in erro["mensagem"]
+
+
+@pytest.mark.parametrize("valor", ['"abc"', "[1, 2, 3]", "matrix(2, 3, 0)"])
+def test_len_aceita_colecoes_suportadas(valor):
+    resultado = analisar(f"seq {{ print(len({valor})); }}")
+    assert resultado["erros"] == []
+    assert resultado["semantica"]["sucesso"] is True
+    assert "call len, 1" in resultado["tac"]
+
+
+def test_len_em_parametro_com_tipo_inferido():
+    resultado = analisar('func tamanho(valor) { return len(valor); } seq { print(tamanho("abc")); }')
+    assert resultado["erros"] == []
+
+
+def test_len_tambem_valida_identificadores_dos_argumentos():
+    resultado = analisar("seq { print(len(inexistente)); }")
+    assert resultado["semantica"]["sucesso"] is False
+    assert any("nao declarada" in erro["mensagem"] for erro in resultado["erros"])

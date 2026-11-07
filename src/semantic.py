@@ -350,6 +350,11 @@ class SemanticAnalyzer:
             
             elif node.name == "fmt" and len(node.arguments) != 2:
                 self._report(node.line, f"Funcao 'fmt' espera 2 argumentos (valor, casas_decimais), recebeu {len(node.arguments)}.")
+            elif node.name == "len":
+                if len(node.arguments) != 1:
+                    self._report(node.line, f"Funcao 'len' espera 1 argumento, recebeu {len(node.arguments)}.")
+                elif self._infer_type(node.arguments[0]) not in ("string", "list", "matrix", "var", "unknown"):
+                    self._report(node.line, "Funcao 'len' requer string, lista ou matriz.")
                 
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, PropertyAccess):

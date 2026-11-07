@@ -823,7 +823,7 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `exp(x)` | `exp(number)` → `number` | Exponencial natural (eˣ) |
 | `random()` | `random()` → `number` | Número aleatório entre 0 e 1 |
 | `range(n)` / `range(a,b)` | `range(int)` → `list` | Gera sequência inteira |
-| `len(col)` | `len(list\|string)` → `number` | Comprimento de coleção |
+| `len(col)` | `len(list\|string\|matrix)` → `number` | Exige um argumento. Devolve o comprimento da string ou lista e o número de linhas da matriz |
 | `to_number(s)` | `to_number(string)` → `number` | Converte string para número |
 | `to_int(x)` | `to_int(x)` → `number` (inferência atual) | Converte número ou string numérica e trunca em direção a zero; verifica a faixa de int |
 | `to_string(v)` | `to_string(v)` → `string` | Traduzida para `__to_string`; aceita números, booleanos e strings |
