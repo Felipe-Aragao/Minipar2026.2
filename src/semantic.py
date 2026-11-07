@@ -108,7 +108,7 @@ class SemanticAnalyzer:
         if isinstance(node, MethodCall):
             return "unknown"
         if isinstance(node, FuncCallExpr):
-            if node.name in ("random", "exp", "time", "to_number", "to_int", "save_bmp", "launch_file"): return "number"
+            if node.name in ("random", "exp", "time", "to_number", "to_int", "len", "save_bmp", "launch_file"): return "number"
             if node.name in ("range", "parse_ints"): return "list"
             if node.name in ("to_string", "fmt"): return "string"
             return "unknown"

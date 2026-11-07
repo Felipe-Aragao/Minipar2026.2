@@ -134,11 +134,9 @@ class TACGenerator:
         self._emit(f"{lbl_fork_start}:")
         if isinstance(node.body, (SeqBlock, ParBlock)):
             self._stmt(node.body)
-        elif not isinstance(node.body, (IfStmt, WhileStmt, DoWhileStmt, ForStmt, VarDecl, Assignment, PropertyAssign, IndexAssign, PrintStmt, SendStmt, ReturnStmt, BreakStmt, ContinueStmt)):
-            self._emit(f"return {self._expr(node.body)}")
+            self._emit("END_TASK")
         else:
-            self._stmt(node.body)
-        self._emit("END_TASK")
+            self._emit(f"END_TASK {self._expr(node.body)}")
         
         # Ponto de retomada da thread principal
         self._emit(f"{lbl_fork_end}:")
