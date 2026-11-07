@@ -1,0 +1,47 @@
+func processar_lote(id_nucleo, carga) {
+    var soma = 0;
+    for (var i = 0; i < carga; i = i + 1) {
+        soma = soma + 1;
+    }
+    return soma;
+}
+
+seq {
+    print("Iniciando benchmark de fork e join com afinidade de hardware...");
+    var t_inicio = time();
+
+    # 1. Fork como expressao com captura de retorno em variaveis
+    var task0 = fork core(0) processar_lote(0, 500000);
+    var task1 = fork core(1) processar_lote(1, 500000);
+    var task2 = fork core(2) processar_lote(2, 500000);
+    var task3 = fork core(3) processar_lote(3, 500000);
+
+    var r0 = join(task0);
+    var r1 = join(task1);
+    var r2 = join(task2);
+    var r3 = join(task3);
+
+    var total = r0 + r1 + r2 + r3;
+    print("Total processado via join com retorno:", total);
+
+    # 2. Fork como comando com barreira join;
+    fork core(0) {
+        print("Trabalhador A executando no nucleo 0");
+    }
+    fork core(1) {
+        print("Trabalhador B executando no nucleo 1");
+    }
+    fork core(2) {
+        print("Trabalhador C executando no nucleo 2");
+    }
+    fork core(3) {
+        print("Trabalhador D executando no nucleo 3");
+    }
+    join;
+    print("Barreira global (join;) sincronizada!");
+
+    var t_fim = time();
+    var duracao = t_fim - t_inicio;
+    print("Tempo total decorrido:", duracao);
+    print("Teste fork/join finalizado com sucesso!");
+}

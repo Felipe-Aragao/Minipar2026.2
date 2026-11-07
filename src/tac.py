@@ -132,7 +132,7 @@ class TACGenerator:
         
         # Corpo isolado da subtarefa
         self._emit(f"{lbl_fork_start}:")
-        if isinstance(node.body, SeqBlock):
+        if isinstance(node.body, (SeqBlock, ParBlock)):
             self._stmt(node.body)
             self._emit("END_TASK")
         else:
