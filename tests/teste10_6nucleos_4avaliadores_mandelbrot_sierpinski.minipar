@@ -28,18 +28,14 @@ func avaliar_lote(avaliador, inicio_idx, fim_idx) {
 }
 
 # --- 3. Tarefa do Nucleo 4: Calculo do Fractal de Mandelbrot em Arte ASCII ---
-func gerar_mandelbrot(imprimir) {
+func gerar_mandelbrot() {
     var largura = 50.0;
     var altura = 20.0;
     var max_iter = 100.0;
     var caracteres = " .:-=+#%@";
     var num_chars = len(caracteres);
 
-    if (imprimir) {
-        print("");
-        print("=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5 - Core ID 4) ===");
-    }
-
+    var fractal = "";
     var y = 0;
     while (y < 20) {
         var linha = "";
@@ -73,16 +69,10 @@ func gerar_mandelbrot(imprimir) {
             linha = linha + caracteres[char_idx];
             x = x + 1;
         }
-        if (imprimir) {
-            print(linha);
-        }
+        fractal = fractal + linha + "\n";
         y = y + 1;
     }
-    if (imprimir) {
-        print("================================================================");
-        print("");
-    }
-    return 1;
+    return fractal;
 }
 
 # --- 4. Tarefa do Nucleo 5: Calculo Recursivo e Geracao do Tapete de Sierpinski em BMP ---
@@ -117,7 +107,7 @@ func desenhar_sierpinski(tela, x, y, tamanho) {
     return 1;
 }
 
-func trabalhador_sierpinski(caminho, salvar) {
+func trabalhador_sierpinski() {
     var tamanho = 243;
     var tela = matrix(tamanho, tamanho, "navy");
 
@@ -128,10 +118,7 @@ func trabalhador_sierpinski(caminho, salvar) {
         rep = rep + 1;
     }
 
-    if (salvar) {
-        save_bmp(caminho, tela);
-    }
-    return 1;
+    return tela;
 }
 
 # --- 5. Programa Principal e Benchmark ---
@@ -144,33 +131,33 @@ seq {
     print("Carga de Trabalho:", TOTAL_ATIVIDADES, "atividades + Mandelbrot (ASCII) + Tapete de Sierpinski (Imagem BMP)");
     print("");
 
-    # --- 5.1 Execucao Sequencial (Apenas 1 Nucleo executa tudo) ---
+    # --- 5.1 Execucao Sequencial (Apenas 1 Nucleo executa tudo, sem I/O de disco) ---
     print("--- 1. Executando Modo Sequencial (Apenas 1 Núcleo) ---");
     var t0_seq = time();
 
     var seq_total = avaliar_lote("Professor", 0, TOTAL_ATIVIDADES);
-    var ok_mandel_seq = gerar_mandelbrot(false);
-    var ok_sierp_seq = trabalhador_sierpinski(CAMINHO_BMP, false);
+    var ok_mandel_seq = gerar_mandelbrot();
+    var ok_sierp_seq = trabalhador_sierpinski();
 
     var t1_seq = time();
     var tempo_seq = t1_seq - t0_seq;
     print("Tempo Sequencial Concluido em:", fmt(tempo_seq, 2), "segundos");
     print("");
 
-    # --- 5.2 Execucao Paralela com 6 Nucleos Dedicados ---
+    # --- 5.2 Execucao Paralela com 6 Nucleos Dedicados (Carga computacional pura) ---
     print("--- 2. Executando Modo Paralelo (6 Núcleos Dedicados) ---");
     var t0_par = time();
 
     # Dispara os 6 nucleos simultaneamente via fork core(...):
     # Cores 0 a 3: 4 Avaliadores
-    # Core 4: Fractal de Mandelbrot
-    # Core 5: Tapete de Sierpinski (renderizacao grafica em BMP)
+    # Core 4: Fractal de Mandelbrot (ASCII)
+    # Core 5: Tapete de Sierpinski (matriz gráfica 243x243)
     var t_prof = fork core(0) avaliar_lote("Professor", 0, 40);
     var t_mon1 = fork core(1) avaliar_lote("Monitor 1", 40, 80);
     var t_mon2 = fork core(2) avaliar_lote("Monitor 2", 80, 120);
     var t_mon3 = fork core(3) avaliar_lote("Monitor 3", 120, 160);
-    var t_frac = fork core(4) gerar_mandelbrot(false);
-    var t_sier = fork core(5) trabalhador_sierpinski(CAMINHO_BMP, true);
+    var t_frac = fork core(4) gerar_mandelbrot();
+    var t_sier = fork core(5) trabalhador_sierpinski();
 
     # Sincronizacao de todas as 6 subtarefas com Join
     var r_prof = join(t_prof);
@@ -187,13 +174,32 @@ seq {
     print("Tempo Paralelo Concluido em:  ", fmt(tempo_par, 2), "segundos");
     print("");
 
-    if (seq_total != par_total) {
-        print("Erro: contagem divergente de atividades!");
-    }
+    print("Atividades avaliadas por lote:");
+    print("  Professor :", r_prof);
+    print("  Monitor 1 :", r_mon1);
+    print("  Monitor 2 :", r_mon2);
+    print("  Monitor 3 :", r_mon3);
+    print("Total Paralelo  :", par_total);
+    print("Total Sequencial:", seq_total);
+    print("");
 
-    # Exibe os fractais gerados
-    var desenhar_mandel = gerar_mandelbrot(true);
+    if (seq_total != 160 || par_total != 160 || seq_total != par_total) {
+        print("Erro: contagem divergente de atividades!");
+    } else {
+        print("Validacao: 160 atividades avaliadas com sucesso em ambos os modos.");
+    }
+    print("");
+
+    # Exibe o Mandelbrot retornado pela subtarefa paralela (sem recalcular!)
+    print("=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5 - Core ID 4) ===");
+    print(r_frac);
+    print("================================================================");
+    print("");
+
+    # Salva em disco a imagem gerada pela subtarefa do Sierpinski (fora do benchmark)
+    save_bmp(CAMINHO_BMP, r_sier);
     print("-> [Núcleo 6 - Core ID 5] Tapete de Sierpinski (243x243) salvo em '" + CAMINHO_BMP + "'!");
+    print("");
 
     # --- 5.3 Metricas do Benchmark de Desempenho ---
     var speedup = tempo_seq / tempo_par;

@@ -28,18 +28,14 @@ func avaliar_lote(avaliador, inicio_idx, fim_idx) {
 }
 
 # --- 3. Tarefa do Nucleo 4: Calculo do Fractal de Mandelbrot em Arte ASCII ---
-func gerar_mandelbrot(imprimir) {
+func gerar_mandelbrot() {
     var largura = 50.0;
     var altura = 20.0;
     var max_iter = 100.0;
     var caracteres = " .:-=+#%@";
     var num_chars = len(caracteres);
 
-    if (imprimir) {
-        print("");
-        print("=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5) ===");
-    }
-
+    var fractal = "";
     var y = 0;
     while (y < 20) {
         var linha = "";
@@ -73,16 +69,10 @@ func gerar_mandelbrot(imprimir) {
             linha = linha + caracteres[char_idx];
             x = x + 1;
         }
-        if (imprimir) {
-            print(linha);
-        }
+        fractal = fractal + linha + "\n";
         y = y + 1;
     }
-    if (imprimir) {
-        print("====================================================");
-        print("");
-    }
-    return 1;
+    return fractal;
 }
 
 # --- 4. Programa Principal e Benchmark ---
@@ -99,7 +89,7 @@ seq {
     var t0_seq = time();
 
     var seq_total = avaliar_lote("Professor", 0, TOTAL_ATIVIDADES);
-    var ok_seq = gerar_mandelbrot(false);
+    var ok_seq = gerar_mandelbrot();
 
     var t1_seq = time();
     var tempo_seq = t1_seq - t0_seq;
@@ -115,7 +105,7 @@ seq {
     var t_mon1 = fork core(1) avaliar_lote("Monitor 1", 40, 80);
     var t_mon2 = fork core(2) avaliar_lote("Monitor 2", 80, 120);
     var t_mon3 = fork core(3) avaliar_lote("Monitor 3", 120, 160);
-    var t_frac = fork core(4) gerar_mandelbrot(false);
+    var t_frac = fork core(4) gerar_mandelbrot();
 
     # Sincronizacao de todas as 5 subtarefas
     var r_prof = join(t_prof);
@@ -131,12 +121,27 @@ seq {
     print("Tempo Paralelo Concluido em:  ", fmt(tempo_par, 2), "segundos");
     print("");
 
-    if (seq_total != par_total) {
-        print("Erro: contagem divergente de atividades!");
-    }
+    print("Atividades avaliadas por lote:");
+    print("  Professor :", r_prof);
+    print("  Monitor 1 :", r_mon1);
+    print("  Monitor 2 :", r_mon2);
+    print("  Monitor 3 :", r_mon3);
+    print("Total Paralelo  :", par_total);
+    print("Total Sequencial:", seq_total);
+    print("");
 
-    # Exibe o fractal calculado
-    var desenhar = gerar_mandelbrot(true);
+    if (seq_total != 160 || par_total != 160 || seq_total != par_total) {
+        print("Erro: contagem divergente de atividades!");
+    } else {
+        print("Validacao: 160 atividades avaliadas com sucesso em ambos os modos.");
+    }
+    print("");
+
+    # Exibe o fractal calculado pela subtarefa paralela (sem recalcular!)
+    print("=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5) ===");
+    print(r_frac);
+    print("====================================================");
+    print("");
 
     # --- 4.3 Metricas do Benchmark de Desempenho ---
     var speedup = tempo_seq / tempo_par;

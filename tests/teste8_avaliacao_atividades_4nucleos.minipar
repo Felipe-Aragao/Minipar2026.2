@@ -74,9 +74,21 @@ seq {
     print("Tempo Paralelo Concluido em:  ", fmt(tempo_par, 2), "segundos");
     print("");
 
-    if (seq_total != par_total) {
+    print("Atividades avaliadas por lote:");
+    print("  Professor :", r_prof);
+    print("  Monitor 1 :", r_mon1);
+    print("  Monitor 2 :", r_mon2);
+    print("  Monitor 3 :", r_mon3);
+    print("Total Paralelo  :", par_total);
+    print("Total Sequencial:", seq_total);
+    print("");
+
+    if (seq_total != 160 || par_total != 160 || seq_total != par_total) {
         print("Erro: contagem divergente de atividades!");
+    } else {
+        print("Validacao: 160 atividades avaliadas com sucesso em ambos os modos.");
     }
+    print("");
 
     # --- 3.3 Metricas do Benchmark de Desempenho ---
     var speedup = tempo_seq / tempo_par;
