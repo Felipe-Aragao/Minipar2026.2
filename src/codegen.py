@@ -111,10 +111,10 @@ class CppCodeGenerator:
                 for stmt in node.body.statements:
                     body_lines.append(self._translate_statement(stmt, "        "))
                 inner = "".join(body_lines)
-                return f"std::async(std::launch::async, [=]() mutable {{\n{inner}    }})"
+                return f"__register_task(std::async(std::launch::async, [=]() mutable {{\n{inner}    }}))"
             else:
                 body_expr = self._translate_expression(node.body)
-                return f"std::async(std::launch::async, [=]() mutable {{ {core_setup}return {body_expr}; }})"
+                return f"__register_task(std::async(std::launch::async, [=]() mutable {{ {core_setup}return {body_expr}; }}))"
 
         if isinstance(node, JoinStmt):
             if node.args:
@@ -122,7 +122,7 @@ class CppCodeGenerator:
                     return f"{self._translate_expression(node.args[0])}.get()"
                 waits = ", ".join(f"{self._translate_expression(a)}.get()" for a in node.args)
                 return f"({waits})"
-            return "0"
+            return "(__task_pool_wait_all(), 0)"
 
         return "0"
 
@@ -217,19 +217,14 @@ class CppCodeGenerator:
                 body_code = f"{indent}        {core_setup}{indent}        {body_expr};\n" if core_setup else f"{indent}        {body_expr};\n"
 
             return (
-                f"{indent}__task_pool.push_back(std::async(std::launch::async, [=]() mutable {{\n"
+                f"{indent}__register_task(std::async(std::launch::async, [=]() mutable {{\n"
                 f"{body_code}"
                 f"{indent}}}));\n"
             )
 
         if isinstance(node, JoinStmt):
             if not node.args:
-                return (
-                    f"{indent}for (auto& __f : __task_pool) {{\n"
-                    f"{indent}    if (__f.valid()) __f.get();\n"
-                    f"{indent}}}\n"
-                    f"{indent}__task_pool.clear();\n"
-                )
+                return f"{indent}__task_pool_wait_all();\n"
             else:
                 lines = []
                 for arg in node.args:

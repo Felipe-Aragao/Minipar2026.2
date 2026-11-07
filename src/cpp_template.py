@@ -14,6 +14,8 @@ _CPP_HEADER = """\
 #include <cstdio>
 #include <stdexcept>
 #include <limits>
+#include <mutex>
+#include <functional>
 
 #ifdef _WIN32
   #ifndef NOMINMAX
@@ -47,12 +49,58 @@ void __set_core_affinity(int core_id) {
 #endif
 }
 
-// Pool global de tarefas disparadas por fork como comando para sincronizacao com barreira (join;)
-inline std::vector<std::future<void>> __task_pool;
+// Pool global e thread-safe de tarefas disparadas por fork para sincronizacao com barreira (join;)
+inline std::mutex __task_pool_mtx;
+inline std::vector<std::function<void()>> __task_pool;
+
+template<typename T>
+std::shared_future<T> __register_task(std::future<T> fut) {
+    auto sf = fut.share();
+    {
+        std::lock_guard<std::mutex> lock(__task_pool_mtx);
+        __task_pool.push_back([sf]() mutable {
+            if (sf.valid()) sf.wait();
+        });
+    }
+    return sf;
+}
+
+template<typename T>
+std::shared_future<T> __register_task(std::shared_future<T> sf) {
+    {
+        std::lock_guard<std::mutex> lock(__task_pool_mtx);
+        __task_pool.push_back([sf]() mutable {
+            if (sf.valid()) sf.wait();
+        });
+    }
+    return sf;
+}
+
+inline void __task_pool_wait_all() {
+    std::vector<std::function<void()>> tasks;
+    {
+        std::lock_guard<std::mutex> lock(__task_pool_mtx);
+        tasks = std::move(__task_pool);
+        __task_pool.clear();
+    }
+    for (auto& task : tasks) {
+        if (task) task();
+    }
+}
 
 // Helper para sincronizacao de tarefas com argumentos join(t) ou join(lista_de_tarefas)
 template<typename T>
 void __minipar_join_target(std::future<T>& f) {
+    if (f.valid()) f.wait();
+}
+
+template<typename T>
+void __minipar_join_target(std::shared_future<T>& f) {
+    if (f.valid()) f.wait();
+}
+
+template<typename T>
+void __minipar_join_target(const std::shared_future<T>& f) {
     if (f.valid()) f.wait();
 }
 
