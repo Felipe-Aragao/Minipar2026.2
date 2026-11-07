@@ -128,8 +128,8 @@ class CppCodeGenerator:
                     else:
                         flattened.append(a)
                 if len(flattened) == 1:
-                    return f"{self._translate_expression(flattened[0])}.get()"
-                waits = ", ".join(f"{self._translate_expression(a)}.get()" for a in flattened)
+                    return f"__minipar_get({self._translate_expression(flattened[0])})"
+                waits = ", ".join(f"__minipar_get({self._translate_expression(a)})" for a in flattened)
                 return f"({waits})"
             return "(__task_pool_wait_all(), 0)"
 

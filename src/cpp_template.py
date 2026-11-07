@@ -86,6 +86,18 @@ inline void __task_pool_wait_all() {
     }
 }
 
+// Helper para captura segura do retorno de tarefas (evita erro com tarefas de retorno void)
+template<typename Fut>
+auto __minipar_get(Fut&& f) {
+    using ResultT = decltype(f.get());
+    if constexpr (std::is_void_v<ResultT>) {
+        if (f.valid()) f.get();
+        return 0;
+    } else {
+        return f.get();
+    }
+}
+
 // Helper para sincronizacao de tarefas com argumentos join(t) ou join(lista_de_tarefas)
 template<typename T>
 void __minipar_join_target(std::future<T>& f) {
