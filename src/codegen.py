@@ -103,6 +103,9 @@ class CppCodeGenerator:
             if node.destino and node.destino.tipo == "core" and node.destino.args:
                 core_expr = self._translate_expression(node.destino.args[0])
                 core_setup = f"__set_core_affinity(static_cast<int>({core_expr})); "
+            elif node.destino and node.destino.tipo == "host":
+                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
+                core_setup = 'std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl; '
 
             if isinstance(node.body, SeqBlock):
                 body_lines = []
@@ -118,9 +121,15 @@ class CppCodeGenerator:
 
         if isinstance(node, JoinStmt):
             if node.args:
-                if len(node.args) == 1:
-                    return f"{self._translate_expression(node.args[0])}.get()"
-                waits = ", ".join(f"{self._translate_expression(a)}.get()" for a in node.args)
+                flattened = []
+                for a in node.args:
+                    if isinstance(a, ListLiteral):
+                        flattened.extend(a.elements)
+                    else:
+                        flattened.append(a)
+                if len(flattened) == 1:
+                    return f"{self._translate_expression(flattened[0])}.get()"
+                waits = ", ".join(f"{self._translate_expression(a)}.get()" for a in flattened)
                 return f"({waits})"
             return "(__task_pool_wait_all(), 0)"
 
@@ -204,6 +213,9 @@ class CppCodeGenerator:
             if node.destino and node.destino.tipo == "core" and node.destino.args:
                 core_expr = self._translate_expression(node.destino.args[0])
                 core_setup = f"__set_core_affinity(static_cast<int>({core_expr}));\n"
+            elif node.destino and node.destino.tipo == "host":
+                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
+                core_setup = f'{indent}        std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl;\n'
 
             if isinstance(node.body, SeqBlock):
                 body_lines = []
@@ -228,8 +240,13 @@ class CppCodeGenerator:
             else:
                 lines = []
                 for arg in node.args:
-                    arg_str = self._translate_expression(arg)
-                    lines.append(f"{indent}__minipar_join_target({arg_str});\n")
+                    if isinstance(arg, ListLiteral):
+                        for elem in arg.elements:
+                            elem_str = self._translate_expression(elem)
+                            lines.append(f"{indent}__minipar_join_target({elem_str});\n")
+                    else:
+                        arg_str = self._translate_expression(arg)
+                        lines.append(f"{indent}__minipar_join_target({arg_str});\n")
                 return "".join(lines)
 
         if isinstance(node, PrintStmt):

@@ -224,13 +224,14 @@ class SemanticAnalyzer:
                 self._fork_scope_start = old_fork_scope
 
         elif isinstance(node, JoinStmt):
-            # O parser pode anexar atributos a JoinStmt para capturar os argumentos
             args = getattr(node, "args", [])
             for arg in args:
                 self.validate_node(arg)
                 arg_type = self._infer_type(arg)
-                if arg_type not in ("task", "list", "unknown"):
-                     self._report(node.line, f"'join' requer subtarefa do tipo 'task' ou lista de subtarefas, recebido '{arg_type}'.")
+                if isinstance(arg, ListLiteral) or arg_type == "list":
+                    self._report(node.line, f"'join' nao suporta lista de tarefas. Utilize a forma variadica 'join(t1, t2, ...)' ou a barreira 'join;'.")
+                elif arg_type not in ("task", "unknown"):
+                    self._report(node.line, f"'join' requer subtarefa do tipo 'task', recebido '{arg_type}'.")
         
         elif isinstance(node, PrintStmt):
             for arg in node.arguments: self.validate_node(arg)
