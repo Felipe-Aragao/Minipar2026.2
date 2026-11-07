@@ -2,6 +2,7 @@ _CPP_HEADER = """\
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <syncstream>
 #include <vector>
 #include <thread>
 #include <future>
@@ -230,7 +231,7 @@ inline int __minipar_launch_file(const std::string& path) {
     HINSTANCE res = ShellExecuteA(NULL, "open", win_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
     return (reinterpret_cast<INT_PTR>(res) > 32) ? 1 : 0;
 #elif defined(__linux__)
-    int res = system(("xdg-open "" + path + "" &").c_str());
+    int res = system(("xdg-open \\\"" + path + "\\\" &").c_str());
     return (res == 0) ? 1 : 0;
 #else
     return 0;

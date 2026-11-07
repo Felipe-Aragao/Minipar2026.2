@@ -259,7 +259,10 @@ class CppCodeGenerator:
                 if i > 0:
                     parts.append(' << " "')
                 parts.append(f" << {self._translate_expression(arg)}")
-            return f"{indent}std::cout{ ''.join(parts) } << std::endl;\n"
+            return (f"{indent}{{\n"
+                    f"{indent}    std::osyncstream __minipar_line(std::cout);\n"
+                    f"{indent}    __minipar_line{''.join(parts)} << std::endl;\n"
+                    f"{indent}}}\n")
         
         if isinstance(node, SeqBlock):
             lines = [f"{indent}{{\n"]
