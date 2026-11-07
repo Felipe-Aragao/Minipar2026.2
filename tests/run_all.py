@@ -61,6 +61,42 @@ TOLERANCE = {
 CHECKS = {
     "teste1_calculadora_cliente_servidor": ["Resultado: 7"],
     "teste2_fatorial_fibonacci_par": ["Fatorial de 5: 120"],
+    "teste8_avaliacao_atividades_4nucleos": [
+        "Total de Atividades a Avaliar: 160",
+        "Professor : 40",
+        "Monitor 1 : 40",
+        "Monitor 2 : 40",
+        "Monitor 3 : 40",
+        "Total Paralelo  : 160",
+        "Total Sequencial: 160",
+        "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
+        "BENCHMARK DE DESEMPENHO",
+    ],
+    "teste9_5nucleos_4avaliadores_mandelbrot": [
+        "Carga de Trabalho: 160 atividades",
+        "Professor : 40",
+        "Monitor 1 : 40",
+        "Monitor 2 : 40",
+        "Monitor 3 : 40",
+        "Total Paralelo  : 160",
+        "Total Sequencial: 160",
+        "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
+        "=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5) ===",
+        "BENCHMARK DE DESEMPENHO",
+    ],
+    "teste10_6nucleos_4avaliadores_mandelbrot_sierpinski": [
+        "Carga de Trabalho: 160 atividades",
+        "Professor : 40",
+        "Monitor 1 : 40",
+        "Monitor 2 : 40",
+        "Monitor 3 : 40",
+        "Total Paralelo  : 160",
+        "Total Sequencial: 160",
+        "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
+        "=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5 - Core ID 4) ===",
+        "Tapete de Sierpinski (243x243) salvo em 'output/tapete_sierpinski.bmp'!",
+        "BENCHMARK DE DESEMPENHO",
+    ],
     "teste_adicional1_paralelismo_3_computadores": [
         "PC1 QuickSort: [33,12,98,5,61] -> [5,12,33,61,98]",
         "PC3 Fatorial: 5! = 120",
@@ -249,7 +285,8 @@ def main():
         counts[s] = counts.get(s, 0) + 1
     ordem = ["PASSOU", "FALHOU", "CRASH", "TIMEOUT", "ERRO_COMPILACAO", "SEM_VERIFICACAO"]
     print("  " + " | ".join(f"{s}: {counts[s]}" for s in ordem if s in counts) + f"  (total {len(results)})")
-    print("  [ -- ] = compilou e rodou, mas o teste nao tem saida esperada nem CHECKS")
+    if counts.get("SEM_VERIFICACAO", 0):
+        print("  [ -- ] = compilou e rodou, mas o teste nao tem saida esperada nem CHECKS")
     bad = sum(1 for _, s in results if s not in ("PASSOU", "SEM_VERIFICACAO"))
     return 1 if bad else 0
 
