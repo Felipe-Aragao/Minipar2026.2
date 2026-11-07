@@ -36,16 +36,25 @@ _CPP_HEADER = """\
 #endif
 
 // Helper para afinidade de nucleos da CPU (Core Affinity)
-void __set_core_affinity(int core_id) {
+inline void __set_core_affinity(int core_id) {
     if (core_id < 0) return;
+    unsigned int total_cores = std::thread::hardware_concurrency();
+    if (total_cores == 0) total_cores = 1;
+    int safe_core = core_id % static_cast<int>(total_cores);
 #ifdef _WIN32
-    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (core_id % 64));
-    SetThreadAffinityMask(GetCurrentThread(), mask);
+    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (safe_core % 64));
+    DWORD_PTR prev = SetThreadAffinityMask(GetCurrentThread(), mask);
+    if (prev == 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Windows." << std::endl;
+    }
 #elif defined(__linux__)
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
-    CPU_SET(core_id, &cpuset);
-    pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    CPU_SET(safe_core, &cpuset);
+    int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (ret != 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Linux (erro " << ret << ")." << std::endl;
+    }
 #endif
 }
 
