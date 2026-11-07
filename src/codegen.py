@@ -56,6 +56,8 @@ class CppCodeGenerator:
                 return f"std::exp({args})"
             if node.name == "random":
                 return "random_val()"
+            if node.name == "time":
+                return "__minipar_time()"
             if node.name == "len":
                 return f"{self._translate_expression(node.arguments[0])}.size()"
             if node.name == "range":
@@ -96,6 +98,41 @@ class CppCodeGenerator:
             idx = self._translate_expression(node.index)
             return f"__index({obj}, {idx})"
 
+        if isinstance(node, ForkStmt):
+            core_setup = ""
+            if node.destino and node.destino.tipo == "core" and node.destino.args:
+                core_expr = self._translate_expression(node.destino.args[0])
+                core_setup = f"__set_core_affinity(static_cast<int>({core_expr})); "
+            elif node.destino and node.destino.tipo == "host":
+                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
+                core_setup = 'std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl; '
+
+            if isinstance(node.body, SeqBlock):
+                body_lines = []
+                if core_setup:
+                    body_lines.append(f"        {core_setup}\n")
+                for stmt in node.body.statements:
+                    body_lines.append(self._translate_statement(stmt, "        "))
+                inner = "".join(body_lines)
+                return f"__register_task(std::async(std::launch::async, [=]() mutable {{\n{inner}    }}))"
+            else:
+                body_expr = self._translate_expression(node.body)
+                return f"__register_task(std::async(std::launch::async, [=]() mutable {{ {core_setup}return {body_expr}; }}))"
+
+        if isinstance(node, JoinStmt):
+            if node.args:
+                flattened = []
+                for a in node.args:
+                    if isinstance(a, ListLiteral):
+                        flattened.extend(a.elements)
+                    else:
+                        flattened.append(a)
+                if len(flattened) == 1:
+                    return f"__minipar_get({self._translate_expression(flattened[0])})"
+                waits = ", ".join(f"__minipar_get({self._translate_expression(a)})" for a in flattened)
+                return f"({waits})"
+            return "(__task_pool_wait_all(), 0)"
+
         return "0"
 
     def _has_value_return(self, node: Optional[ASTNode]) -> bool:
@@ -127,6 +164,12 @@ class CppCodeGenerator:
             return self._uses_float_return(node.body)
         if isinstance(node, ReturnStmt):
             return self._uses_float_return(node.value)
+        if isinstance(node, FuncCallExpr):
+            if node.name in ("to_string", "fmt"):
+                return False
+            if node.name in ("time", "random"):
+                return True
+            return any(self._uses_float_return(arg) for arg in node.arguments)
         return False
 
     def _return_type(self, body: Optional[ASTNode]) -> str:
@@ -166,9 +209,45 @@ class CppCodeGenerator:
             return f"{indent}{chan}->sendData(__to_string({msg}));\n"
     
         if isinstance(node, ForkStmt):
-            raise NotImplementedError("[ERRO] Instrução 'fork' ainda não suportada no Back-end pelo gerador C++.")
+            core_setup = ""
+            if node.destino and node.destino.tipo == "core" and node.destino.args:
+                core_expr = self._translate_expression(node.destino.args[0])
+                core_setup = f"__set_core_affinity(static_cast<int>({core_expr}));\n"
+            elif node.destino and node.destino.tipo == "host":
+                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
+                core_setup = f'{indent}        std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl;\n'
+
+            if isinstance(node.body, SeqBlock):
+                body_lines = []
+                if core_setup:
+                    body_lines.append(f"{indent}        {core_setup}")
+                for stmt in node.body.statements:
+                    body_lines.append(self._translate_statement(stmt, indent + "        "))
+                body_code = "".join(body_lines)
+            else:
+                body_expr = self._translate_expression(node.body)
+                body_code = f"{indent}        {core_setup}{indent}        {body_expr};\n" if core_setup else f"{indent}        {body_expr};\n"
+
+            return (
+                f"{indent}__register_task(std::async(std::launch::async, [=]() mutable {{\n"
+                f"{body_code}"
+                f"{indent}}}));\n"
+            )
+
         if isinstance(node, JoinStmt):
-            raise NotImplementedError("[ERRO] Instrução 'join' ainda não suportada no Back-end pelo gerador C++.")
+            if not node.args:
+                return f"{indent}__task_pool_wait_all();\n"
+            else:
+                lines = []
+                for arg in node.args:
+                    if isinstance(arg, ListLiteral):
+                        for elem in arg.elements:
+                            elem_str = self._translate_expression(elem)
+                            lines.append(f"{indent}__minipar_join_target({elem_str});\n")
+                    else:
+                        arg_str = self._translate_expression(arg)
+                        lines.append(f"{indent}__minipar_join_target({arg_str});\n")
+                return "".join(lines)
 
         if isinstance(node, PrintStmt):
             parts = []
@@ -275,16 +354,20 @@ class CppCodeGenerator:
                 if isinstance(node, SeqBlock):
                     for stmt in node.statements: cpp_code += self._translate_statement(stmt, "    ")
                 else: cpp_code += self._translate_statement(node, "    ")
-        cpp_code += "\n    return 0;\n}\n"
+        cpp_code += "\n    #ifdef _WIN32\n        WSACleanup();\n    #endif\n    return 0;\n}\n"
 
         os.makedirs("output", exist_ok=True)
         cpp_path = os.path.join("output", f"{output_name}.cpp")
-        exe_path = os.path.join("output", f"{output_name}.exe")
+        exe_ext = ".exe" if sys.platform == "win32" else ""
+        exe_path = os.path.join("output", f"{output_name}{exe_ext}")
 
         with open(cpp_path, "w", encoding="utf-8") as f: f.write(cpp_code)
         
         print("[CODEGEN] Compilando via g++ com -std=c++20 e -O3...")
-        result = subprocess.run(["g++", "-std=c++20", "-O3", cpp_path, "-o", exe_path, "-pthread", "-lws2_32"])
+        compile_cmd = ["g++", "-std=c++20", "-O3", cpp_path, "-o", exe_path, "-pthread"]
+        if sys.platform == "win32":
+            compile_cmd.append("-lws2_32")
+        result = subprocess.run(compile_cmd)
         if result.returncode == 0:
             print(f"[SUCESSO] Executavel: {exe_path}")
             return True

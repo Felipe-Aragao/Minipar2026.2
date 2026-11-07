@@ -4,6 +4,7 @@ _CPP_HEADER = """\
 #include <sstream>
 #include <vector>
 #include <thread>
+#include <future>
 #include <memory>
 #include <cstring>
 #include <chrono>
@@ -13,21 +14,110 @@ _CPP_HEADER = """\
 #include <cstdio>
 #include <stdexcept>
 #include <limits>
+#include <mutex>
+#include <functional>
 
 #ifdef _WIN32
+  #ifndef NOMINMAX
+    #define NOMINMAX
+  #endif
   #include <winsock2.h>
   #include <ws2tcpip.h>
+  #include <windows.h>
   #pragma comment(lib, "ws2_32.lib")
   #define CLOSE_SOCK closesocket
 #else
   #include <sys/socket.h>
   #include <arpa/inet.h>
   #include <unistd.h>
+  #include <pthread.h>
+  #include <sched.h>
   #define CLOSE_SOCK close
 #endif
 
+// Helper para afinidade de nucleos da CPU (Core Affinity)
+inline void __set_core_affinity(int core_id) {
+    if (core_id < 0) return;
+    unsigned int total_cores = std::thread::hardware_concurrency();
+    if (total_cores == 0) total_cores = 1;
+    int safe_core = core_id % static_cast<int>(total_cores);
+#ifdef _WIN32
+    DWORD_PTR mask = (static_cast<DWORD_PTR>(1) << (safe_core % 64));
+    DWORD_PTR prev = SetThreadAffinityMask(GetCurrentThread(), mask);
+    if (prev == 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Windows." << std::endl;
+    }
+#elif defined(__linux__)
+    cpu_set_t cpuset;
+    CPU_ZERO(&cpuset);
+    CPU_SET(safe_core, &cpuset);
+    int ret = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+    if (ret != 0) {
+        std::cerr << "[AVISO AFINIDADE] Falha ao definir afinidade para nucleo " << safe_core << " no Linux (erro " << ret << ")." << std::endl;
+    }
+#endif
+}
+
+// Pool de tarefas com escopo local por thread para sincronizacao segura com barreira (join;)
+inline thread_local std::vector<std::function<void()>> __task_pool;
+
+template<typename T>
+std::shared_future<T> __register_task(std::future<T> fut) {
+    auto sf = fut.share();
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
+    return sf;
+}
+
+template<typename T>
+std::shared_future<T> __register_task(std::shared_future<T> sf) {
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
+    return sf;
+}
+
+inline void __task_pool_wait_all() {
+    std::vector<std::function<void()>> tasks = std::move(__task_pool);
+    __task_pool.clear();
+    for (auto& task : tasks) {
+        if (task) task();
+    }
+}
+
+// Helper para captura segura do retorno de tarefas (evita erro com tarefas de retorno void)
+template<typename Fut>
+auto __minipar_get(Fut&& f) {
+    using ResultT = decltype(f.get());
+    if constexpr (std::is_void_v<ResultT>) {
+        if (f.valid()) f.get();
+        return 0;
+    } else {
+        return f.get();
+    }
+}
+
+// Helper para sincronizacao de tarefas com argumentos join(t), temporarios join(fork ...) ou colecoes
+template<typename T>
+void __minipar_join_target(T&& target) {
+    if constexpr (requires { target.valid(); target.wait(); }) {
+        if (target.valid()) target.wait();
+    } else if constexpr (requires { std::begin(target); std::end(target); }) {
+        for (auto& item : target) {
+            __minipar_join_target(item);
+        }
+    }
+}
+
 // Helper para Random nativo
 double random_val() { return (double)rand() / RAND_MAX; }
+
+// Helper para captura de tempo de alta precisao (em segundos)
+double __minipar_time() {
+    auto now = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double>(now.time_since_epoch()).count();
+}
 
 // Função nativa para formatação decimal do MiniPar
 std::string __fmt(double value, int decimal_places) {
