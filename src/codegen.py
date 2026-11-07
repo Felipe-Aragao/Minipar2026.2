@@ -111,10 +111,10 @@ class CppCodeGenerator:
                 for stmt in node.body.statements:
                     body_lines.append(self._translate_statement(stmt, "        "))
                 inner = "".join(body_lines)
-                return f"std::async(std::launch::async, [&]() {{\n{inner}    }})"
+                return f"std::async(std::launch::async, [=]() mutable {{\n{inner}    }})"
             else:
                 body_expr = self._translate_expression(node.body)
-                return f"std::async(std::launch::async, [&]() {{ {core_setup}return {body_expr}; }})"
+                return f"std::async(std::launch::async, [=]() mutable {{ {core_setup}return {body_expr}; }})"
 
         if isinstance(node, JoinStmt):
             if node.args:
@@ -217,7 +217,7 @@ class CppCodeGenerator:
                 body_code = f"{indent}        {core_setup}{indent}        {body_expr};\n" if core_setup else f"{indent}        {body_expr};\n"
 
             return (
-                f"{indent}__task_pool.push_back(std::async(std::launch::async, [&]() {{\n"
+                f"{indent}__task_pool.push_back(std::async(std::launch::async, [=]() mutable {{\n"
                 f"{body_code}"
                 f"{indent}}}));\n"
             )
