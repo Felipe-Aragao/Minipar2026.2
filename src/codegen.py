@@ -354,16 +354,20 @@ class CppCodeGenerator:
                 if isinstance(node, SeqBlock):
                     for stmt in node.statements: cpp_code += self._translate_statement(stmt, "    ")
                 else: cpp_code += self._translate_statement(node, "    ")
-        cpp_code += "\n    return 0;\n}\n"
+        cpp_code += "\n    #ifdef _WIN32\n        WSACleanup();\n    #endif\n    return 0;\n}\n"
 
         os.makedirs("output", exist_ok=True)
         cpp_path = os.path.join("output", f"{output_name}.cpp")
-        exe_path = os.path.join("output", f"{output_name}.exe")
+        exe_ext = ".exe" if sys.platform == "win32" else ""
+        exe_path = os.path.join("output", f"{output_name}{exe_ext}")
 
         with open(cpp_path, "w", encoding="utf-8") as f: f.write(cpp_code)
         
         print("[CODEGEN] Compilando via g++ com -std=c++20 e -O3...")
-        result = subprocess.run(["g++", "-std=c++20", "-O3", cpp_path, "-o", exe_path, "-pthread", "-lws2_32"])
+        compile_cmd = ["g++", "-std=c++20", "-O3", cpp_path, "-o", exe_path, "-pthread"]
+        if sys.platform == "win32":
+            compile_cmd.append("-lws2_32")
+        result = subprocess.run(compile_cmd)
         if result.returncode == 0:
             print(f"[SUCESSO] Executavel: {exe_path}")
             return True
