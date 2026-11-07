@@ -328,6 +328,11 @@ class SemanticAnalyzer:
         elif isinstance(node, ReturnStmt):
             if node.value: self.validate_node(node.value)
         elif isinstance(node, MethodCall):
+            if node.method_name in ("append", "push_back", "pop"):
+                root_id = self._get_root_identifier(node.object)
+                if root_id:
+                    self._check_memory_isolation(root_id, node.line)
+
             obj_type = self._infer_type(node.object)
             cls = self._classes.get(obj_type)
             if cls and node.method_name not in cls.methods:
