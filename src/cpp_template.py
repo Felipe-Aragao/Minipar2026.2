@@ -16,6 +16,8 @@ _CPP_HEADER = """\
 #include <limits>
 #include <mutex>
 #include <functional>
+#include <fstream>
+#include <cstdint>
 
 #ifdef _WIN32
   #ifndef NOMINMAX
@@ -24,6 +26,7 @@ _CPP_HEADER = """\
   #include <winsock2.h>
   #include <ws2tcpip.h>
   #include <windows.h>
+  #include <shellapi.h>
   #pragma comment(lib, "ws2_32.lib")
   #define CLOSE_SOCK closesocket
 #else
@@ -124,6 +127,114 @@ std::string __fmt(double value, int decimal_places) {
     char buffer[128];
     snprintf(buffer, sizeof(buffer), "%.*f", decimal_places, value);
     return std::string(buffer);
+}
+
+// Helper nativo para exportar matriz bidimensional para arquivo BMP (24 bits True Color)
+template<typename T>
+int __minipar_save_bmp(const std::string& path, const std::vector<std::vector<T>>& mat) {
+    int height = static_cast<int>(mat.size());
+    if (height == 0) return 0;
+    int width = static_cast<int>(mat[0].size());
+    if (width == 0) return 0;
+
+    int row_bytes = width * 3;
+    int padding = (4 - (row_bytes % 4)) % 4;
+    int stride = row_bytes + padding;
+    uint32_t image_size = static_cast<uint32_t>(stride * height);
+    uint32_t file_size = 54 + image_size;
+
+    std::ofstream out(path, std::ios::binary);
+    if (!out.is_open()) return 0;
+
+    uint8_t file_header[14] = {
+        'B', 'M',
+        static_cast<uint8_t>(file_size & 0xFF),
+        static_cast<uint8_t>((file_size >> 8) & 0xFF),
+        static_cast<uint8_t>((file_size >> 16) & 0xFF),
+        static_cast<uint8_t>((file_size >> 24) & 0xFF),
+        0, 0, 0, 0,
+        54, 0, 0, 0
+    };
+    out.write(reinterpret_cast<const char*>(file_header), 14);
+
+    uint8_t info_header[40] = {0};
+    info_header[0] = 40;
+    info_header[4] = static_cast<uint8_t>(width & 0xFF);
+    info_header[5] = static_cast<uint8_t>((width >> 8) & 0xFF);
+    info_header[6] = static_cast<uint8_t>((width >> 16) & 0xFF);
+    info_header[7] = static_cast<uint8_t>((width >> 24) & 0xFF);
+
+    info_header[8] = static_cast<uint8_t>(height & 0xFF);
+    info_header[9] = static_cast<uint8_t>((height >> 8) & 0xFF);
+    info_header[10] = static_cast<uint8_t>((height >> 16) & 0xFF);
+    info_header[11] = static_cast<uint8_t>((height >> 24) & 0xFF);
+
+    info_header[12] = 1;
+    info_header[14] = 24;
+
+    info_header[20] = static_cast<uint8_t>(image_size & 0xFF);
+    info_header[21] = static_cast<uint8_t>((image_size >> 8) & 0xFF);
+    info_header[22] = static_cast<uint8_t>((image_size >> 16) & 0xFF);
+    info_header[23] = static_cast<uint8_t>((image_size >> 24) & 0xFF);
+
+    out.write(reinterpret_cast<const char*>(info_header), 40);
+
+    uint8_t pad_bytes[3] = {0, 0, 0};
+    for (int y = height - 1; y >= 0; --y) {
+        for (int x = 0; x < width; ++x) {
+            uint8_t r = 0, g = 0, b = 0;
+            if constexpr (std::is_same_v<T, std::string>) {
+                const std::string& val = mat[y][x];
+                if (val == "navy") {
+                    r = 0; g = 0; b = 128;
+                } else if (val == "white" || val == "#") {
+                    r = 255; g = 255; b = 255;
+                } else if (val == "black" || val == " ") {
+                    r = 0; g = 0; b = 0;
+                } else if (val == "red") {
+                    r = 255; g = 0; b = 0;
+                } else if (val == "green") {
+                    r = 0; g = 255; b = 0;
+                } else if (val == "blue") {
+                    r = 0; g = 0; b = 255;
+                } else if (val == "yellow") {
+                    r = 255; g = 255; b = 0;
+                } else {
+                    r = 255; g = 255; b = 255;
+                }
+            } else {
+                double d = static_cast<double>(mat[y][x]);
+                if (d > 255.0) d = 255.0;
+                if (d < 0.0) d = 0.0;
+                uint8_t gray = static_cast<uint8_t>(d);
+                r = gray; g = gray; b = gray;
+            }
+            uint8_t pixel[3] = {b, g, r};
+            out.write(reinterpret_cast<const char*>(pixel), 3);
+        }
+        if (padding > 0) {
+            out.write(reinterpret_cast<const char*>(pad_bytes), padding);
+        }
+    }
+    out.close();
+    return 1;
+}
+
+// Helper nativo para delegar a abertura de arquivo para o aplicativo padrao do SO
+inline int __minipar_launch_file(const std::string& path) {
+#ifdef _WIN32
+    std::string win_path = path;
+    for (char& c : win_path) {
+        if (c == '/') c = '\\\\';
+    }
+    HINSTANCE res = ShellExecuteA(NULL, "open", win_path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+    return (reinterpret_cast<INT_PTR>(res) > 32) ? 1 : 0;
+#elif defined(__linux__)
+    int res = system(("xdg-open "" + path + "" &").c_str());
+    return (res == 0) ? 1 : 0;
+#else
+    return 0;
+#endif
 }
 
 
