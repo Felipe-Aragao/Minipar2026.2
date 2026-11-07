@@ -239,7 +239,7 @@ class CppCodeGenerator:
                 f"{self._translate_expression(node.target.index)}, "
                 f"{self._translate_expression(node.value)})")
 
-    def generate(self, program: Program, output_name: str) -> bool:
+    def to_cpp(self, program: Program) -> str:
         cpp_code = _CPP_HEADER
         
         for node in program.statements:
@@ -277,6 +277,10 @@ class CppCodeGenerator:
                 else: cpp_code += self._translate_statement(node, "    ")
         cpp_code += "\n    return 0;\n}\n"
 
+        return cpp_code
+
+    def generate(self, program: Program, output_name: str) -> bool:
+        cpp_code = self.to_cpp(program)
         os.makedirs("output", exist_ok=True)
         cpp_path = os.path.join("output", f"{output_name}.cpp")
         exe_path = os.path.join("output", f"{output_name}.exe")

@@ -4,6 +4,7 @@ from lexer import Lexer, LexError, TokenType
 from parser import Parser, ParseError
 from semantic import SemanticAnalyzer
 from tac import TACGenerator
+from codegen import CppCodeGenerator
 
 
 def analisar(codigo: str) -> dict:
@@ -14,7 +15,7 @@ def analisar(codigo: str) -> dict:
     Instâncias novas por chamada evitam mistura entre análises da Web.
     """
     resultado = {"tokens": [], "ast": None, "simbolos": [],
-                 "semantica": {"sucesso": None}, "tac": "", "erros": []}
+                 "semantica": {"sucesso": None}, "tac": "", "cpp": "", "erros": []}
     if not isinstance(codigo, str):
         raise TypeError("codigo deve ser uma string")
 
@@ -48,6 +49,12 @@ def analisar(codigo: str) -> dict:
 
         fase = "tac"
         resultado["tac"] = TACGenerator().generate_text(programa)
+
+        fase = "codegen"
+        try:
+            resultado["cpp"] = CppCodeGenerator().to_cpp(programa)
+        except Exception as erro:
+            resultado["cpp"] = f"// Erro ao gerar C++: {erro}"
     except (LexError, ParseError) as erro:
         resultado["erros"].append({"fase": fase, "linha": erro.line,
                                     "coluna": erro.col, "mensagem": str(erro)})

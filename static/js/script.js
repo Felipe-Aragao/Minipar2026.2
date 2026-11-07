@@ -367,4 +367,173 @@ document.addEventListener("DOMContentLoaded", () => {
         terminalOutput.textContent = "Workspace limpo. Pode começar a digitar.";
         terminalOutput.classList.remove("error-text");
     };
+
+    // ==========================================
+    // REDIMENSIONAMENTO DO EXPLORER E TERMINAL (IDE 2026.1)
+    // ==========================================
+    function refreshIdeEditors() {
+        if (editorMinipar) editorMinipar.refresh();
+        if (editorCpp) editorCpp.refresh();
+        if (editorTac) editorTac.refresh();
+    }
+
+    // 1. Redimensionamento da Sidebar / Explorer (Horizontal: Esquerda / Direita)
+    const appContainer = document.querySelector(".app-container");
+    const sidebar = document.querySelector(".sidebar");
+    const sidebarResizer = document.getElementById("sidebar-resizer");
+    const btnToggleSidebar = document.getElementById("btn-toggle-sidebar");
+    const sidebarToggleIcon = document.getElementById("sidebar-toggle-icon");
+
+    let isDraggingSidebar = false;
+
+    const savedSidebarWidth = localStorage.getItem("minipar_ide_sidebar_w");
+    if (savedSidebarWidth && !isNaN(savedSidebarWidth)) {
+        const sw = parseInt(savedSidebarWidth);
+        if (sw >= 120 && sw <= 600) {
+            sidebar.style.width = sw + "px";
+        }
+    }
+
+    if (sidebarResizer) {
+        sidebarResizer.addEventListener("mousedown", (e) => {
+            if (e.target.closest("#btn-toggle-sidebar")) return;
+            isDraggingSidebar = true;
+            sidebarResizer.classList.add("is-dragging");
+            document.body.classList.add("is-resizing-col");
+        });
+
+        sidebarResizer.addEventListener("dblclick", (e) => {
+            if (e.target.closest("#btn-toggle-sidebar")) return;
+            sidebar.style.width = "250px";
+            localStorage.removeItem("minipar_ide_sidebar_w");
+            if (appContainer.classList.contains("sidebar-collapsed")) {
+                toggleSidebarCollapse(false);
+            }
+            refreshIdeEditors();
+        });
+    }
+
+    if (btnToggleSidebar) {
+        btnToggleSidebar.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isCollapsed = appContainer.classList.contains("sidebar-collapsed");
+            toggleSidebarCollapse(!isCollapsed);
+        });
+    }
+
+    function toggleSidebarCollapse(collapse) {
+        if (collapse) {
+            appContainer.classList.add("sidebar-collapsed");
+            if (sidebarToggleIcon) sidebarToggleIcon.innerHTML = '<polyline points="9 18 15 12 9 6"></polyline>';
+            if (btnToggleSidebar) btnToggleSidebar.title = "Expandir Explorer";
+        } else {
+            appContainer.classList.remove("sidebar-collapsed");
+            if (sidebarToggleIcon) sidebarToggleIcon.innerHTML = '<polyline points="15 18 9 12 15 6"></polyline>';
+            if (btnToggleSidebar) btnToggleSidebar.title = "Recolher Explorer";
+        }
+        setTimeout(refreshIdeEditors, 50);
+    }
+
+    // 2. Redimensionamento do Terminal Output (Vertical: Subida e Descida)
+    const mainContent = document.querySelector(".main-content");
+    const terminal = document.querySelector(".terminal");
+    const terminalResizer = document.getElementById("terminal-resizer");
+    const btnToggleTerminal = document.getElementById("btn-toggle-terminal");
+    const terminalToggleIcon = document.getElementById("terminal-toggle-icon");
+
+    let isDraggingTerminal = false;
+
+    const savedTerminalHeight = localStorage.getItem("minipar_ide_terminal_h");
+    if (savedTerminalHeight && !isNaN(savedTerminalHeight)) {
+        const th = parseInt(savedTerminalHeight);
+        if (th >= 50 && th <= 800) {
+            terminal.style.height = th + "px";
+        }
+    }
+
+    if (terminalResizer) {
+        terminalResizer.addEventListener("mousedown", (e) => {
+            if (e.target.closest("#btn-toggle-terminal")) return;
+            isDraggingTerminal = true;
+            terminalResizer.classList.add("is-dragging");
+            document.body.classList.add("is-resizing-row");
+        });
+
+        terminalResizer.addEventListener("dblclick", (e) => {
+            if (e.target.closest("#btn-toggle-terminal")) return;
+            terminal.style.height = "200px";
+            localStorage.removeItem("minipar_ide_terminal_h");
+            if (mainContent.classList.contains("terminal-collapsed")) {
+                toggleTerminalCollapse(false);
+            }
+            refreshIdeEditors();
+        });
+    }
+
+    if (btnToggleTerminal) {
+        btnToggleTerminal.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isCollapsed = mainContent.classList.contains("terminal-collapsed");
+            toggleTerminalCollapse(!isCollapsed);
+        });
+    }
+
+    function toggleTerminalCollapse(collapse) {
+        if (collapse) {
+            mainContent.classList.add("terminal-collapsed");
+            if (terminalToggleIcon) terminalToggleIcon.innerHTML = '<polyline points="18 15 12 9 6 15"></polyline>';
+            if (btnToggleTerminal) btnToggleTerminal.title = "Expandir Terminal";
+        } else {
+            mainContent.classList.remove("terminal-collapsed");
+            if (terminalToggleIcon) terminalToggleIcon.innerHTML = '<polyline points="6 9 12 15 18 9"></polyline>';
+            if (btnToggleTerminal) btnToggleTerminal.title = "Recolher Terminal";
+        }
+        setTimeout(refreshIdeEditors, 50);
+    }
+
+    // 3. Handlers Globais de Arraste (Mousemove e Mouseup)
+    document.addEventListener("mousemove", (e) => {
+        if (isDraggingSidebar && sidebar) {
+            if (appContainer.classList.contains("sidebar-collapsed")) {
+                toggleSidebarCollapse(false);
+            }
+            const minW = 120;
+            const maxW = Math.min(600, window.innerWidth - 300);
+            const newW = Math.max(minW, Math.min(maxW, e.clientX));
+            sidebar.style.width = newW + "px";
+            localStorage.setItem("minipar_ide_sidebar_w", newW);
+            refreshIdeEditors();
+        }
+
+        if (isDraggingTerminal && terminal) {
+            if (mainContent.classList.contains("terminal-collapsed")) {
+                toggleTerminalCollapse(false);
+            }
+            const minH = 50;
+            const maxH = Math.min(window.innerHeight - 150, window.innerHeight * 0.8);
+            const newH = Math.max(minH, Math.min(maxH, window.innerHeight - e.clientY));
+            terminal.style.height = newH + "px";
+            localStorage.setItem("minipar_ide_terminal_h", newH);
+            refreshIdeEditors();
+        }
+    });
+
+    document.addEventListener("mouseup", () => {
+        if (isDraggingSidebar) {
+            isDraggingSidebar = false;
+            if (sidebarResizer) sidebarResizer.classList.remove("is-dragging");
+            document.body.classList.remove("is-resizing-col");
+            refreshIdeEditors();
+        }
+        if (isDraggingTerminal) {
+            isDraggingTerminal = false;
+            if (terminalResizer) terminalResizer.classList.remove("is-dragging");
+            document.body.classList.remove("is-resizing-row");
+            refreshIdeEditors();
+        }
+    });
+
+    window.addEventListener("resize", () => {
+        refreshIdeEditors();
+    });
 });

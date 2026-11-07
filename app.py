@@ -1,8 +1,13 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
 import subprocess
 import os
 import sys
 import glob
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if os.path.join(BASE_DIR, 'src') not in sys.path:
+    sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
+from analise import analisar
 
 from test_orchestrator import (
     get_spec_summary,
@@ -20,6 +25,7 @@ from test_orchestrator import (
 )
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Configuração de Diretórios
 TESTS_DIR = 'tests'
@@ -30,8 +36,69 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 @app.route('/')
-def index():
+def didatico():
+    """Segunda Interface Web do MiniPar 2026.2 (Educacional/Didática)."""
+    return render_template('didatico.html')
+
+@app.route('/ide')
+def ide():
+    """Primeira Interface Web do MiniPar (IDE do Desenvolvedor de 2026.1)."""
     return render_template('index.html')
+
+@app.route('/api/analisar', methods=['POST'])
+def api_analisar():
+    """Executa a análise modular por fases (Léxico, Sintático, Semântico, TAC, C++) em memória."""
+    data = request.json or {}
+    codigo = data.get('code', '')
+    try:
+        resultado = analisar(codigo)
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({
+            "tokens": [],
+            "ast": None,
+            "simbolos": [],
+            "semantica": {"sucesso": False},
+            "tac": "",
+            "cpp": "",
+            "erros": [{"fase": "sistema", "linha": None, "coluna": None, "mensagem": str(e)}]
+        }), 500
+
+@app.route('/api/download_exe', methods=['POST'])
+def download_exe():
+    """Compila o código via g++ e envia o executável binário como anexo para download."""
+    data = request.json or {}
+    code = data.get('code', '')
+    filename = data.get('filename', 'programa_minipar.minipar')
+    if not filename.endswith('.minipar'):
+        filename += '.minipar'
+    base_name = filename.replace('.minipar', '')
+    
+    file_path = os.path.join(TEMP_DIR, filename)
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(code)
+        
+    process = subprocess.run(
+        [sys.executable, 'main.py', file_path],
+        capture_output=True,
+        text=True,
+        timeout=25
+    )
+    if process.returncode != 0:
+        err = process.stderr or process.stdout or "Falha ao compilar executável."
+        return jsonify({"success": False, "error": err}), 400
+
+    exe_ext = ".exe" if sys.platform == "win32" else ""
+    exe_path = os.path.join(OUTPUT_DIR, f"{base_name}{exe_ext}")
+    if not os.path.exists(exe_path):
+        return jsonify({"success": False, "error": "Binário executável não foi gerado."}), 500
+
+    return send_file(
+        os.path.abspath(exe_path),
+        as_attachment=True,
+        download_name=f"{base_name}{exe_ext}",
+        mimetype="application/octet-stream"
+    )
 
 @app.route('/api/tests', methods=['GET'])
 def get_tests():
@@ -132,7 +199,7 @@ def compile_code():
         # 1. FASE DE COMPILAÇÃO (Gera TAC e C++)
         # ==========================================
         process = subprocess.run(
-            ['python', 'main.py', file_path], 
+            [sys.executable, 'main.py', file_path], 
             capture_output=True, 
             text=True, 
             timeout=15
