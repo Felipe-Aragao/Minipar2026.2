@@ -1,4 +1,4 @@
-"""Contrato do componente que valida uma AST e expõe símbolos e diagnósticos."""
+"""Validação semântica da AST com símbolos e diagnósticos."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 

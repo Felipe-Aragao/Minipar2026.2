@@ -1211,7 +1211,15 @@ O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 | `ILexico` | `C_Lexico` | Código fonte → lista de tokens |
 | `ISintatico` | `C_Sintatico` | Tokens → AST |
 | `ISemantico` | `C_Semantico` | AST → validação, símbolos e diagnósticos |
+| `ITabelaSimbolos` | `C_TabelaSimbolos` | Declarações e escopos → consultas e histórico de símbolos |
 | `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
+
+O analisador semântico utiliza `ITabelaSimbolos` para registrar declarações,
+consultar o nome visível mais próximo e controlar a entrada e saída de escopos.
+O componente rejeita duplicatas no mesmo escopo, permite nomes iguais em escopos
+aninhados e mantém o histórico das declarações para a interface. A localização
+da declaração visível também fundamenta a verificação de isolamento dos forks.
+Cada análise cria sua própria tabela. Essa organização não altera a sintaxe.
 
 A API preserva os resultados das fases concluídas e registra linha e coluna nos
 erros léxicos, sintáticos e semânticos. Os nós da AST expõem `line` e `col`;

@@ -1,7 +1,6 @@
 from __future__ import annotations
 import sys
 from fractions import Fraction
-from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from ast_nodes import (
     ASTNode, Program, VarDecl, Assignment, PrintStmt, IdentifierExpr, BinaryExpr,
@@ -12,23 +11,14 @@ from ast_nodes import (
     ForkStmt, JoinStmt  
 )
 
-@dataclass
-class Symbol:
-    name: str
-    type: str
-    params: List[str] = field(default_factory=list)
-    attributes: Dict[str, str] = field(default_factory=dict)
-    methods: Dict[str, List[str]] = field(default_factory=dict)
+from componente_tabela_simbolos import C_TabelaSimbolos, ITabelaSimbolos, Symbol
 
 class SemanticAnalyzer:
     def __init__(self, *, emit_diagnostics: bool = True) -> None:
-        self._scopes: List[Dict[str, Symbol]] = []
+        self.tabela_simbolos: ITabelaSimbolos = C_TabelaSimbolos()
         self._has_errors = False
         self._emit_diagnostics = emit_diagnostics
         self.errors: List[dict] = []
-        self.symbols: List[dict] = []
-        self._scope_ids = [0]
-        self._next_scope_id = 1
         self._current_function: Optional[str] = None
         self._current_class: Optional[str] = None
         self._classes: Dict[str, Symbol] = {}
@@ -37,36 +27,31 @@ class SemanticAnalyzer:
         
         # Controle de Isolamento de Memória para Paralelismo
         self._fork_scope_start: Optional[int] = None
-        
-        self._enter_scope()
+
+    @property
+    def symbols(self) -> List[dict]:
+        return self.tabela_simbolos.listar_simbolos()
 
     def _enter_scope(self) -> None:
-        if self._scopes:
-            self._scope_ids.append(self._next_scope_id)
-            self._next_scope_id += 1
-        self._scopes.append({})
+        self.tabela_simbolos.entrar_escopo()
+
     def _exit_scope(self) -> None:
-        if len(self._scopes) > 1:
-            self._scopes.pop()
-            self._scope_ids.pop()
+        self.tabela_simbolos.sair_escopo()
 
     def _get_context(self) -> str:
         return f" (Funcao: {self._current_function})" if self._current_function else ""
 
     def _define_symbol(self, name: str, type_: str, node: ASTNode, params: Optional[List[str]] = None) -> None:
-        if name in self._scopes[-1]:
+        declarado = self.tabela_simbolos.declarar(
+            Symbol(name=name, type=type_, params=params or []),
+            linha=node.line, coluna=node.col,
+            funcao=self._current_function, classe=self._current_class,
+        )
+        if not declarado:
             self._report(node, f"Variavel '{name}' ja declarada.")
-        else:
-            self._scopes[-1][name] = Symbol(name=name, type=type_, params=params or [])
-            self.symbols.append({"nome": name, "tipo": type_, "linha": node.line, "coluna": node.col,
-                                 "escopo": self._scope_ids[-1],
-                                 "funcao": self._current_function, "classe": self._current_class,
-                                 "parametros": list(params or [])})
 
     def _lookup(self, name: str) -> Optional[Symbol]:
-        for scope in reversed(self._scopes):
-            if name in scope: return scope[name]
-        return None
+        return self.tabela_simbolos.consultar(name)
 
     def _report(self, node: ASTNode, message: str) -> None:
         self.errors.append({"fase": "semantica", "linha": node.line, "coluna": node.col,
@@ -137,11 +122,9 @@ class SemanticAnalyzer:
     def _check_memory_isolation(self, name: str, node: ASTNode) -> None:
         if self._fork_scope_start is None:
             return
-        for index in range(len(self._scopes) - 1, -1, -1):
-            if name in self._scopes[index]:
-                if index < self._fork_scope_start:
-                    self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um fork. Use mensagens (canais) para compartilhar dados.")
-                return
+        index = self.tabela_simbolos.localizar_escopo(name)
+        if index is not None and index < self._fork_scope_start:
+            self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um fork. Use mensagens (canais) para compartilhar dados.")
 
     def _constant_number(self, node: ASTNode) -> Optional[Fraction]:
         """Avalia apenas aritmética constante, sem executar código MiniPar."""
@@ -220,7 +203,7 @@ class SemanticAnalyzer:
                              self._report(node, f"Alocacao 'host' requer endereco IP ('string') e porta ('number').")
 
             old_fork_scope = self._fork_scope_start
-            self._fork_scope_start = len(self._scopes)
+            self._fork_scope_start = self.tabela_simbolos.profundidade
             try:
                 self.validate_node(node.body)
             finally:

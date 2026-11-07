@@ -1,5 +1,4 @@
-"""Contrato de análise para a Web didática, sem arquivos, GCC ou execução.
-"""
+"""Análise por fase para a interface Web didática."""
 from componente_lexico import C_Lexico, ILexico
 from componente_semantico import C_Semantico, ISemantico
 from componente_sintatico import C_Sintatico, ISintatico

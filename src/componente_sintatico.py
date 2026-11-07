@@ -1,4 +1,4 @@
-"""Contrato do componente que transforma tokens em AST."""
+"""Transformação de tokens em árvore sintática abstrata."""
 from abc import ABC, abstractmethod
 
 from ast_nodes import Program

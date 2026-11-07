@@ -1,4 +1,4 @@
-"""Contrato do componente de geração de código de três endereços."""
+"""Geração de código intermediário de três endereços."""
 from abc import ABC, abstractmethod
 
 from ast_nodes import Program
