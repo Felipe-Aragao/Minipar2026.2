@@ -111,11 +111,13 @@ Os arquivos gerados (`.cpp`, `.tac` e executáveis) serão armazenados na pasta 
 
 ```bash
 python -m pip install -r requirements-dev.txt
-python -m pytest tests/test_analise.py tests/test_frontend.py
+python -m pytest tests
 ```
 
 A suíte verifica tokens, AST, símbolos, diagnósticos e TAC, incluindo destinos de
-`fork`, escopo e `join`. Os testes do front-end dispensam g++ e conexões de rede.
+`fork`, escopo e `join`. Os testes dos componentes dispensam g++ e conexões de rede.
+`test_integracao_backend.py` compila e executa casos de regressão quando g++ está
+disponível, cobrindo tarefas aninhadas, barreira, capturas, retornos e impressão de listas.
 Para compilar e executar os programas de exemplo, use `python tests/run_all.py`.
 
 ---

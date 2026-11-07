@@ -12,9 +12,9 @@
 
 > Documento de referência da sintaxe MiniPar 2026.2. Usa notação EBNF (opcionais e repetições), mantendo o nome BNF do projeto.
 > Aceitação sintática, validação semântica e geração de executável são etapas distintas.
-> `fork`/`join` possuem representação no front-end e no TAC; sua execução em C++ ainda
-> está pendente. Afinidade de CPU, execução remota e retorno de subtarefas são objetivos
-> de implementação, não funcionalidades comprovadas pelo estado atual do compilador.
+> `fork`/`join` possuem representação no front-end e no TAC e execução local em C++.
+> O runtime usa tarefas assíncronas e barreiras por thread. A execução remota via
+> `host` permanece pendente e gera aviso de execução local.
 
 ---
 
@@ -294,9 +294,9 @@ par {
 
 ### 6.3 Divisão em Subtarefas Paralelas (FORK)
 
-A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador atual reconhece essa sintaxe e gera TAC; o back-end C++ ainda precisa implementar sua execução.
+A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador reconhece essa sintaxe, gera TAC e executa as tarefas localmente com `std::async`.
 Conforme a especificação do MiniPar 2026.2, cada subtarefa criada via `fork` pode ser explicitamente alocada para:
-- **Um núcleo da CPU** (`core(<expressao>)`), com afinidade de hardware a implementar; ou
+- **Um núcleo da CPU** (`core(<expressao>)`), com solicitação de afinidade ao sistema operacional; ou
 - **Um computador diferente** (`host(<expressao> [, <expressao>])`), com despacho remoto a implementar. A existência de canais TCP não implementa, por si só, o despacho de subtarefas.
 
 O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `task` à expressão; a criação efetiva dessa referência e sua utilização em `join` dependem do back-end.
@@ -341,7 +341,7 @@ essa aceitação não garante que o back-end consiga executá-las como subtarefa
 
 ### 6.4 Sincronização e Coleta de Subtarefas (JOIN)
 
-A semântica pretendida de `join` é aguardar as subtarefas e, quando houver suporte a retorno, coletar resultados. A sincronização e a coleta ainda não estão implementadas no back-end C++.
+A semântica pretendida de `join` é aguardar as subtarefas e, quando houver suporte a retorno, coletar resultados. O runtime implementa espera e obtenção do retorno com `shared_future`.
 
 ```bnf
 <comando_join>   ::= "join" [ "(" [ <lista_argumentos> ] ")" ] ";"
@@ -349,10 +349,10 @@ A semântica pretendida de `join` é aguardar as subtarefas e, quando houver sup
 <expressao_join> ::= "join" [ "(" [ <lista_argumentos> ] ")" ]
 ```
 
-- `join;` ou `join();`: aguarda a finalização de todas as subtarefas pendentes no escopo atual.
-- `join(t1, t2, ...);` ou `join(lista_tarefas);`: aguarda a conclusão das subtarefas especificadas.
-- `var res = join(t1);`: forma sintática aceita; o resultado é inferido como `unknown`. O retorno efetivo da subtarefa ainda precisa ser implementado.
-- Como expressão, o parser também aceita `join`, `join()` e múltiplos argumentos. Isso documenta a aceitação atual; não comprova disponibilidade de valor nem execução.
+- `join;` ou `join();`: aguarda a finalização de todas as subtarefas registradas pela thread atual.
+- `join(t1, t2, ...);` aguarda as subtarefas especificadas. Listas de tarefas são rejeitadas pelo semântico.
+- `var res = join(t1);`: forma sintática aceita; o resultado é inferido como `unknown`. O runtime obtém o resultado da tarefa. Tarefas sem retorno produzem zero quando usadas como expressão.
+- Como expressão, o parser também aceita `join`, `join()` e múltiplos argumentos. Múltiplos argumentos são aguardados na ordem escrita e a expressão produz o último resultado. A barreira sem argumentos produz zero.
 
 **Exemplos:**
 
@@ -361,8 +361,8 @@ A semântica pretendida de `join` é aguardar as subtarefas e, quando houver sup
 var res1 = join(t1);
 var res2 = join(t2);
 
-# Sincronização de uma lista de subtarefas alocadas em múltiplos núcleos
-join(processos);
+# Sincronização de subtarefas individuais
+join(t1, t2);
 
 # Barreira global para todas as subtarefas disparadas no escopo
 join;
@@ -819,7 +819,7 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 |---------------|------------|-----------|
 | `print(...)` | `print(expr, ...)` | Imprime na saída padrão |
 | `input([prompt])` | `input()` / `input(expr)` | Lê linha do stdin |
-| `time()` | `time()` → `number` | Reconhecida pelo semântico; relógio para benchmarks ainda pendente no back-end |
+| `time()` | `time()` → `number` | Traduzida para `__minipar_time()`, em segundos |
 | `exp(x)` | `exp(number)` → `number` | Exponencial natural (eˣ) |
 | `random()` | `random()` → `number` | Número aleatório entre 0 e 1 |
 | `range(n)` / `range(a,b)` | `range(int)` → `list` | Gera sequência inteira |
@@ -1123,7 +1123,7 @@ O analisador semântico (`src/semantic.py`) usa inferência simples de tipos com
 | Divisão constante por zero em `core(n)` | `Alocacao 'core' contem divisao por zero.` |
 | Escrita em variável externa ao fork | Violação de isolamento, considerando o escopo da declaração |
 | Destino inválido em `fork host(...)` | `Alocação 'host' requer canal ('c_channel') ou endereço IP ('string') e porta ('number').` |
-| Argumento inválido em `join(...)` | `'join' requer subtarefa do tipo 'task' ou lista de subtarefas.` |
+| Argumento inválido em `join(...)` | `'join' requer subtarefa do tipo 'task'.` |
 
 ### Limites atuais da validação semântica
 
@@ -1137,7 +1137,9 @@ Em `core(n)`, constantes aritméticas devem representar inteiros não negativos:
 Valores dinâmicos, faixa de núcleos e disponibilidade exigirão validação no runtime.
 `host(canal)` exige tipo de canal ou desconhecido; `host(ip, porta)` verifica tipos
 string e numérico ou desconhecidos, sem validar endereço ou faixa de porta.
-Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
+Os argumentos de `join` são verificados como `task`, `var` ou `unknown`.
+Listas são rejeitadas com diagnóstico específico. Chamadas `append`, `push_back` e
+`pop` em coleções externas também passam pela verificação de isolamento.
 
 ### Geração de Código C++20
 
@@ -1148,9 +1150,9 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 | `obj.metodo(args)` | `obj->metodo(args)` |
 | `obj.campo` | `obj->campo` |
 | `par { a; b; }` | `std::vector<std::thread>` + `emplace_back` + `join` |
-| `fork core(n) { ... }` | Pendente; comando isolado gera `NotImplementedError` |
-| `fork host(ip, porta) { ... }` | Pendente; despacho remoto não implementado |
-| `join(t)` / `join;` | Pendente; comando isolado gera `NotImplementedError` |
+| `fork core(n) { ... }` | Tarefa assíncrona com captura por valor e solicitação de afinidade |
+| `fork host(ip, porta) { ... }` | Aviso e execução local, com despacho remoto pendente |
+| `join(t)` / `join;` | Obtenção do resultado ou espera das tarefas da thread atual |
 | `c_channel(ip, porta)` | `std::make_shared<MiniParChannel>(ip, porta)` |
 | `send(canal, msg)` | `canal->sendData(__to_string(msg))` |
 | `receive(canal)` | `canal->receiveData()` |
@@ -1158,7 +1160,7 @@ Os argumentos de `join` são verificados como `task`, `list` ou `unknown`.
 | `["a", "b"]` | `__make_list(...)` → `std::vector<std::string>` |
 | `s[i]` / `s[i] = "a"` | `__index` / `__set_index`, com verificação de índice |
 | `matrix(l, c, v)` | `__make_matrix(l, c, v)` |
-| `time()` | Pendente; não há tradução específica nem helper de relógio |
+| `time()` | `__minipar_time()` |
 | `exp(x)` | `std::exp(x)` |
 | `random()` | `random_val()` |
 | `to_number(s)` | `std::stod(s)` |
@@ -1217,11 +1219,11 @@ na AST atual. O TAC representa subtarefas em blocos `FORK`/`END_TASK`, com
 `END_TASK operando` quando o corpo é uma expressão. `JOIN ALL` representa a
 sincronização sem argumentos.
 
-**Limitação importante do gerador atual:** os bloqueios explícitos de fork/join
-estão no tratamento de comandos. Como expressões, esses nós ainda não possuem
-tradução própria e podem cair no retorno padrão `0`. Portanto, gerar C++ ou até um
-executável nesses casos não comprova execução de subtarefas; é uma pendência do
-back-end. Não utilizar esses resultados como evidência dos Testes 8 a 10.
+**Afinidade e portabilidade.** O runtime usa a API correspondente no Windows ou no
+Linux e informa falhas de afinidade. O índice é remapeado pelo número de processadores
+reportado pela máquina. Isso não garante que todos os processadores estejam permitidos
+ao processo. O comando de compilação inclui `-lws2_32` apenas no Windows.
+A validação desta integração foi executada no Windows.
 
----
-
+Cada `print` emite sua linha por um `std::osyncstream` nomeado. Isso evita misturar
+partes de linhas de threads diferentes e preserva a impressão de listas.
