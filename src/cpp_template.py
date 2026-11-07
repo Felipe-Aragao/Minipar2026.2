@@ -58,40 +58,29 @@ inline void __set_core_affinity(int core_id) {
 #endif
 }
 
-// Pool global e thread-safe de tarefas disparadas por fork para sincronizacao com barreira (join;)
-inline std::mutex __task_pool_mtx;
-inline std::vector<std::function<void()>> __task_pool;
+// Pool de tarefas com escopo local por thread para sincronizacao segura com barreira (join;)
+inline thread_local std::vector<std::function<void()>> __task_pool;
 
 template<typename T>
 std::shared_future<T> __register_task(std::future<T> fut) {
     auto sf = fut.share();
-    {
-        std::lock_guard<std::mutex> lock(__task_pool_mtx);
-        __task_pool.push_back([sf]() mutable {
-            if (sf.valid()) sf.wait();
-        });
-    }
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
     return sf;
 }
 
 template<typename T>
 std::shared_future<T> __register_task(std::shared_future<T> sf) {
-    {
-        std::lock_guard<std::mutex> lock(__task_pool_mtx);
-        __task_pool.push_back([sf]() mutable {
-            if (sf.valid()) sf.wait();
-        });
-    }
+    __task_pool.push_back([sf]() mutable {
+        if (sf.valid()) sf.wait();
+    });
     return sf;
 }
 
 inline void __task_pool_wait_all() {
-    std::vector<std::function<void()>> tasks;
-    {
-        std::lock_guard<std::mutex> lock(__task_pool_mtx);
-        tasks = std::move(__task_pool);
-        __task_pool.clear();
-    }
+    std::vector<std::function<void()>> tasks = std::move(__task_pool);
+    __task_pool.clear();
     for (auto& task : tasks) {
         if (task) task();
     }

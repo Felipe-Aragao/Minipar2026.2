@@ -230,7 +230,7 @@ class SemanticAnalyzer:
                 arg_type = self._infer_type(arg)
                 if isinstance(arg, ListLiteral) or arg_type == "list":
                     self._report(node.line, f"'join' nao suporta lista de tarefas. Utilize a forma variadica 'join(t1, t2, ...)' ou a barreira 'join;'.")
-                elif arg_type not in ("task", "unknown"):
+                elif arg_type not in ("task", "var", "unknown"):
                     self._report(node.line, f"'join' requer subtarefa do tipo 'task', recebido '{arg_type}'.")
         
         elif isinstance(node, PrintStmt):
