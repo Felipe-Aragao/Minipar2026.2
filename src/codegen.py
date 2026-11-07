@@ -156,6 +156,8 @@ class CppCodeGenerator:
         if isinstance(node, ReturnStmt):
             return self._uses_float_return(node.value)
         if isinstance(node, FuncCallExpr):
+            if node.name in ("to_string", "fmt"):
+                return False
             if node.name in ("time", "random"):
                 return True
             return any(self._uses_float_return(arg) for arg in node.arguments)
