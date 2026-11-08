@@ -1,4 +1,4 @@
-"""Regressões do contrato consumido pela Web 2: python -m unittest discover -s tests."""
+"""Testes de regressão da análise consumida pela interface Web didática."""
 import json
 from pathlib import Path
 import subprocess

@@ -1,7 +1,6 @@
 from __future__ import annotations
 import sys
 from fractions import Fraction
-from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from ast_nodes import (
     ASTNode, Program, VarDecl, Assignment, PrintStmt, IdentifierExpr, BinaryExpr,
@@ -12,23 +11,14 @@ from ast_nodes import (
     ForkStmt, JoinStmt  
 )
 
-@dataclass
-class Symbol:
-    name: str
-    type: str
-    params: List[str] = field(default_factory=list)
-    attributes: Dict[str, str] = field(default_factory=dict)
-    methods: Dict[str, List[str]] = field(default_factory=dict)
+from componente_tabela_simbolos import C_TabelaSimbolos, ITabelaSimbolos, Symbol
 
 class SemanticAnalyzer:
     def __init__(self, *, emit_diagnostics: bool = True) -> None:
-        self._scopes: List[Dict[str, Symbol]] = []
+        self.tabela_simbolos: ITabelaSimbolos = C_TabelaSimbolos()
         self._has_errors = False
         self._emit_diagnostics = emit_diagnostics
         self.errors: List[dict] = []
-        self.symbols: List[dict] = []
-        self._scope_ids = [0]
-        self._next_scope_id = 1
         self._current_function: Optional[str] = None
         self._current_class: Optional[str] = None
         self._classes: Dict[str, Symbol] = {}
@@ -37,42 +27,40 @@ class SemanticAnalyzer:
         
         # Controle de Isolamento de Memória para Paralelismo
         self._fork_scope_start: Optional[int] = None
-        
-        self._enter_scope()
+
+    @property
+    def symbols(self) -> List[dict]:
+        return self.tabela_simbolos.listar_simbolos()
 
     def _enter_scope(self) -> None:
-        if self._scopes:
-            self._scope_ids.append(self._next_scope_id)
-            self._next_scope_id += 1
-        self._scopes.append({})
+        self.tabela_simbolos.entrar_escopo()
+
     def _exit_scope(self) -> None:
-        if len(self._scopes) > 1:
-            self._scopes.pop()
-            self._scope_ids.pop()
+        self.tabela_simbolos.sair_escopo()
 
     def _get_context(self) -> str:
         return f" (Funcao: {self._current_function})" if self._current_function else ""
 
-    def _define_symbol(self, name: str, type_: str, line: int, params: Optional[List[str]] = None) -> None:
-        if name in self._scopes[-1]:
-            self._report(line, f"Variavel '{name}' ja declarada.")
-        else:
-            self._scopes[-1][name] = Symbol(name=name, type=type_, params=params or [])
-            self.symbols.append({"nome": name, "tipo": type_, "linha": line,
-                                 "escopo": self._scope_ids[-1],
-                                 "funcao": self._current_function, "classe": self._current_class,
-                                 "parametros": list(params or [])})
+    def _define_symbol(self, name: str, type_: str, node: ASTNode, params: Optional[List[str]] = None) -> None:
+        declarado = self.tabela_simbolos.declarar(
+            Symbol(name=name, type=type_, params=params or []),
+            linha=node.line, coluna=node.col,
+            funcao=self._current_function, classe=self._current_class,
+        )
+        if not declarado:
+            self._report(node, f"Variavel '{name}' ja declarada.")
 
     def _lookup(self, name: str) -> Optional[Symbol]:
-        for scope in reversed(self._scopes):
-            if name in scope: return scope[name]
-        return None
+        return self.tabela_simbolos.consultar(name)
 
-    def _report(self, line: int, message: str) -> None:
-        self.errors.append({"fase": "semantica", "linha": line, "coluna": None,
+    def _report(self, node: ASTNode, message: str) -> None:
+        self.errors.append({"fase": "semantica", "linha": node.line, "coluna": node.col,
                             "mensagem": message + self._get_context()})
         if self._emit_diagnostics:
-            print(f"[ERRO SEMANTICO] Linha {line}{self._get_context()}: {message}", file=sys.stderr)
+            position = f"Linha {node.line}"
+            if node.col is not None:
+                position += f", coluna {node.col}"
+            print(f"[ERRO SEMANTICO] {position}{self._get_context()}: {message}", file=sys.stderr)
         self._has_errors = True
 
     def _infer_type(self, node: Optional[ASTNode]) -> str:
@@ -131,14 +119,12 @@ class SemanticAnalyzer:
                 methods = {m.name: m.params for m in stmt.methods}
                 self._classes[stmt.name] = Symbol(stmt.name, "CLASS", attributes=attrs, methods=methods)
 
-    def _check_memory_isolation(self, name: str, line: int) -> None:
+    def _check_memory_isolation(self, name: str, node: ASTNode) -> None:
         if self._fork_scope_start is None:
             return
-        for index in range(len(self._scopes) - 1, -1, -1):
-            if name in self._scopes[index]:
-                if index < self._fork_scope_start:
-                    self._report(line, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um fork. Use mensagens (canais) para compartilhar dados.")
-                return
+        index = self.tabela_simbolos.localizar_escopo(name)
+        if index is not None and index < self._fork_scope_start:
+            self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um fork. Use mensagens (canais) para compartilhar dados.")
 
     def _constant_number(self, node: ASTNode) -> Optional[Fraction]:
         """Avalia apenas aritmética constante, sem executar código MiniPar."""
@@ -176,18 +162,18 @@ class SemanticAnalyzer:
             actual_type = self._infer_type(node.init_value)
             declared_type = actual_type if node.type == "var" and actual_type != "unknown" else node.type
             if not self._types_compatible(declared_type, actual_type):
-                self._report(node.line, f"Tipo incompativel em '{node.name}': esperado {declared_type}, recebido {actual_type}.")
-            self._define_symbol(node.name, declared_type, node.line)
+                self._report(node, f"Tipo incompativel em '{node.name}': esperado {declared_type}, recebido {actual_type}.")
+            self._define_symbol(node.name, declared_type, node)
         
         elif isinstance(node, Assignment):
             sym = self._lookup(node.name)
             if sym is None:
-                self._report(node.line, f"Variavel '{node.name}' nao declarada.")
+                self._report(node, f"Variavel '{node.name}' nao declarada.")
             else:
-                self._check_memory_isolation(node.name, node.line)
+                self._check_memory_isolation(node.name, node)
             self.validate_node(node.value)
             if sym and not self._types_compatible(sym.type, self._infer_type(node.value)):
-                self._report(node.line, f"Tipo incompativel em atribuicao de '{node.name}'.")
+                self._report(node, f"Tipo incompativel em atribuicao de '{node.name}'.")
                 
         elif isinstance(node, ForkStmt):
             if node.destino:
@@ -195,29 +181,29 @@ class SemanticAnalyzer:
                     self.validate_node(node.destino.args[0])
                     arg_type = self._infer_type(node.destino.args[0])
                     if arg_type not in ("number", "int", "unknown"):
-                        self._report(node.line, f"Alocacao 'core' requer expressao numerica inteira.")
+                        self._report(node, f"Alocacao 'core' requer expressao numerica inteira.")
                     else:
                         try:
                             value = self._constant_number(node.destino.args[0])
                         except ZeroDivisionError:
-                            self._report(node.line, "Alocacao 'core' contem divisao por zero.")
+                            self._report(node, "Alocacao 'core' contem divisao por zero.")
                         else:
                             if value is not None and (value.denominator != 1 or value < 0):
-                                self._report(node.line, "Alocacao 'core' requer inteiro nao negativo.")
+                                self._report(node, "Alocacao 'core' requer inteiro nao negativo.")
                 elif node.destino.tipo == "host":
                     self.validate_node(node.destino.args[0])
                     arg_type = self._infer_type(node.destino.args[0])
                     if len(node.destino.args) == 1:
                         if arg_type not in ("c_channel", "unknown"):
-                             self._report(node.line, f"Alocacao 'host' com 1 argumento requer canal ('c_channel').")
+                             self._report(node, f"Alocacao 'host' com 1 argumento requer canal ('c_channel').")
                     elif len(node.destino.args) == 2:
                         self.validate_node(node.destino.args[1])
                         port_type = self._infer_type(node.destino.args[1])
                         if arg_type not in ("string", "unknown") or port_type not in ("number", "int", "unknown"):
-                             self._report(node.line, f"Alocacao 'host' requer endereco IP ('string') e porta ('number').")
+                             self._report(node, f"Alocacao 'host' requer endereco IP ('string') e porta ('number').")
 
             old_fork_scope = self._fork_scope_start
-            self._fork_scope_start = len(self._scopes)
+            self._fork_scope_start = self.tabela_simbolos.profundidade
             try:
                 self.validate_node(node.body)
             finally:
@@ -229,9 +215,9 @@ class SemanticAnalyzer:
                 self.validate_node(arg)
                 arg_type = self._infer_type(arg)
                 if isinstance(arg, ListLiteral) or arg_type == "list":
-                    self._report(node.line, f"'join' nao suporta lista de tarefas. Utilize a forma variadica 'join(t1, t2, ...)' ou a barreira 'join;'.")
+                    self._report(node, f"'join' nao suporta lista de tarefas. Utilize a forma variadica 'join(t1, t2, ...)' ou a barreira 'join;'.")
                 elif arg_type not in ("task", "var", "unknown"):
-                    self._report(node.line, f"'join' requer subtarefa do tipo 'task', recebido '{arg_type}'.")
+                    self._report(node, f"'join' requer subtarefa do tipo 'task', recebido '{arg_type}'.")
         
         elif isinstance(node, PrintStmt):
             for arg in node.arguments: self.validate_node(arg)
@@ -258,17 +244,17 @@ class SemanticAnalyzer:
             
             root_id = self._get_root_identifier(node.target)
             if root_id:
-                self._check_memory_isolation(root_id, node.line)
+                self._check_memory_isolation(root_id, node)
         elif isinstance(node, IdentifierExpr):
             if self._lookup(node.name) is None:
-                self._report(node.line, f"Variavel '{node.name}' nao declarada.")
+                self._report(node, f"Variavel '{node.name}' nao declarada.")
         elif isinstance(node, BinaryExpr):
             self.validate_node(node.left)
             self.validate_node(node.right)
             if node.op in ("+", "-", "*", "/", "%"):
                 lt, rt = self._infer_type(node.left), self._infer_type(node.right)
                 if node.op != "+" and (lt not in ("number", "int", "var", "unknown") or rt not in ("number", "int", "var", "unknown")):
-                    self._report(node.line, f"Operador '{node.op}' exige operandos numericos.")
+                    self._report(node, f"Operador '{node.op}' exige operandos numericos.")
         elif isinstance(node, UnaryExpr):
             self.validate_node(node.operand)
         elif isinstance(node, (SeqBlock, ParBlock)):
@@ -293,7 +279,10 @@ class SemanticAnalyzer:
             self._enter_scope()
             if node.iterator_name:
                 self.validate_node(node.iterable)
-                self._define_symbol(node.iterator_name, "var", node.line)
+                iterator = node
+                if node.iterator_location is not None:
+                    iterator = IdentifierExpr(name=node.iterator_name, **node.iterator_location)
+                self._define_symbol(node.iterator_name, "var", iterator)
             else:
                 self.validate_node(node.initializer)
                 self.validate_node(node.condition)
@@ -304,11 +293,11 @@ class SemanticAnalyzer:
             self._exit_scope()
         elif isinstance(node, (BreakStmt, ContinueStmt)):
             if self._loop_depth == 0:
-                self._report(node.line, f"'{node.__class__.__name__.replace('Stmt', '').lower()}' usado fora de laco.")
+                self._report(node, f"'{node.__class__.__name__.replace('Stmt', '').lower()}' usado fora de laco.")
         elif isinstance(node, ClassDecl):
             if node.superclass and node.superclass not in self._classes:
-                self._report(node.line, f"Superclasse '{node.superclass}' nao declarada.")
-            self._define_symbol(node.name, "CLASS", node.line)
+                self._report(node, f"Superclasse '{node.superclass}' nao declarada.")
+            self._define_symbol(node.name, "CLASS", node)
             self._enter_scope()
             old_class = self._current_class
             self._current_class = node.name
@@ -317,11 +306,15 @@ class SemanticAnalyzer:
             self._current_class = old_class
             self._exit_scope()
         elif isinstance(node, FuncDecl):
-            self._define_symbol(node.name, "FUNC", node.line, node.params)
+            self._define_symbol(node.name, "FUNC", node, node.params)
             self._enter_scope()
             old_function = self._current_function
             self._current_function = node.name
-            for p in node.params: self._define_symbol(p, "var", node.line)
+            for index, name in enumerate(node.params):
+                parameter = node
+                if index < len(node.param_locations):
+                    parameter = IdentifierExpr(name=name, **node.param_locations[index])
+                self._define_symbol(name, "var", parameter)
             self.validate_node(node.body)
             self._current_function = old_function
             self._exit_scope()
@@ -331,29 +324,34 @@ class SemanticAnalyzer:
             if node.method_name in ("append", "push_back", "pop"):
                 root_id = self._get_root_identifier(node.object)
                 if root_id:
-                    self._check_memory_isolation(root_id, node.line)
+                    self._check_memory_isolation(root_id, node)
 
             obj_type = self._infer_type(node.object)
             cls = self._classes.get(obj_type)
             if cls and node.method_name not in cls.methods:
-                self._report(node.line, f"Metodo '{node.method_name}' nao declarado em '{obj_type}'.")
+                self._report(node, f"Metodo '{node.method_name}' nao declarado em '{obj_type}'.")
             elif cls and len(cls.methods[node.method_name]) != len(node.arguments):
-                self._report(node.line, f"Metodo '{node.method_name}' espera {len(cls.methods[node.method_name])} argumento(s), recebeu {len(node.arguments)}.")
+                self._report(node, f"Metodo '{node.method_name}' espera {len(cls.methods[node.method_name])} argumento(s), recebeu {len(node.arguments)}.")
             self.validate_node(node.object)
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, FuncCallExpr):
             nativas = ("exp", "random", "range", "len", "to_number", "parse_ints", "time", "to_int", "to_string", "fmt", "save_bmp", "launch_file")
             if node.name not in self._functions and node.name not in nativas:
-                self._report(node.line, f"Funcao '{node.name}' nao declarada.")
+                self._report(node, f"Funcao '{node.name}' nao declarada.")
             elif node.name in self._functions and len(self._functions[node.name].params) != len(node.arguments):
-                self._report(node.line, f"Funcao '{node.name}' espera {len(self._functions[node.name].params)} argumento(s), recebeu {len(node.arguments)}.")
+                self._report(node, f"Funcao '{node.name}' espera {len(self._functions[node.name].params)} argumento(s), recebeu {len(node.arguments)}.")
             
             elif node.name == "fmt" and len(node.arguments) != 2:
-                self._report(node.line, f"Funcao 'fmt' espera 2 argumentos (valor, casas_decimais), recebeu {len(node.arguments)}.")
+                self._report(node, f"Funcao 'fmt' espera 2 argumentos (valor, casas_decimais), recebeu {len(node.arguments)}.")
+            elif node.name == "len":
+                if len(node.arguments) != 1:
+                    self._report(node, f"Funcao 'len' espera 1 argumento, recebeu {len(node.arguments)}.")
+                elif self._infer_type(node.arguments[0]) not in ("string", "list", "matrix", "var", "unknown"):
+                    self._report(node, "Funcao 'len' requer string, lista ou matriz.")
             elif node.name == "save_bmp" and len(node.arguments) != 2:
-                self._report(node.line, f"Funcao 'save_bmp' espera 2 argumentos (caminho, matriz), recebeu {len(node.arguments)}.")
+                self._report(node, f"Funcao 'save_bmp' espera 2 argumentos (caminho, matriz), recebeu {len(node.arguments)}.")
             elif node.name == "launch_file" and len(node.arguments) != 1:
-                self._report(node.line, f"Funcao 'launch_file' espera 1 argumento (caminho), recebeu {len(node.arguments)}.")
+                self._report(node, f"Funcao 'launch_file' espera 1 argumento (caminho), recebeu {len(node.arguments)}.")
                 
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, PropertyAccess):
@@ -361,7 +359,7 @@ class SemanticAnalyzer:
             obj_type = self._infer_type(node.object)
             cls = self._classes.get(obj_type)
             if cls and node.property_name not in cls.attributes:
-                self._report(node.line, f"Atributo '{node.property_name}' nao declarado em '{obj_type}'.")
+                self._report(node, f"Atributo '{node.property_name}' nao declarado em '{obj_type}'.")
         elif isinstance(node, PropertyAssign):
             self.validate_node(node.object)
             self.validate_node(node.value)
@@ -369,15 +367,15 @@ class SemanticAnalyzer:
             #Isolamento na raiz do objeto
             root_id = self._get_root_identifier(node.object)
             if root_id:
-                self._check_memory_isolation(root_id, node.line)
+                self._check_memory_isolation(root_id, node)
                 
             obj_type = self._infer_type(node.object)
             cls = self._classes.get(obj_type)
             if cls and node.property_name not in cls.attributes:
-                self._report(node.line, f"Atributo '{node.property_name}' nao declarado em '{obj_type}'.")
+                self._report(node, f"Atributo '{node.property_name}' nao declarado em '{obj_type}'.")
         elif isinstance(node, NewExpr):
             if node.class_name not in self._classes:
-                self._report(node.line, f"Classe '{node.class_name}' nao declarada.")
+                self._report(node, f"Classe '{node.class_name}' nao declarada.")
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, ThisExpr):
             pass
