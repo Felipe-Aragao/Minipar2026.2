@@ -277,6 +277,11 @@ O `seq` é opcional: blocos com chaves `{ }` são tratados como sequenciais por 
 
 Cada comando interno é executado como uma `std::thread` independente em C++.
 As threads são sincronizadas por `join()` ao final do bloco.
+Cada tarefa possui escopo próprio: uma declaração não fica visível nas tarefas
+irmãs. Leituras externas são permitidas, mas escritas diretas em variáveis,
+índices ou propriedades externas são rejeitadas, assim como em `fork`.
+O C++ usa captura por valor (`[=]() mutable`), preservando as variáveis locais
+e os canais necessários à comunicação por mensagens.
 
 ```bnf
 <bloco_par> ::= "par" "{" { <comando> } "}"
@@ -1121,7 +1126,7 @@ O analisador semântico (`src/semantic.py`) usa inferência simples de tipos com
 | Tipo incompatível em `core(n)` | `Alocacao 'core' requer expressao numerica inteira.` |
 | Constante fracionária ou negativa em `core(n)` | `Alocacao 'core' requer inteiro nao negativo.` |
 | Divisão constante por zero em `core(n)` | `Alocacao 'core' contem divisao por zero.` |
-| Escrita em variável externa ao fork | Violação de isolamento, considerando o escopo da declaração |
+| Escrita em variável externa à tarefa de fork ou par | Violação de isolamento, considerando o escopo da declaração |
 | Destino inválido em `fork host(...)` | `Alocação 'host' requer canal ('c_channel') ou endereço IP ('string') e porta ('number').` |
 | Argumento inválido em `join(...)` | `'join' requer subtarefa do tipo 'task'.` |
 
@@ -1129,8 +1134,11 @@ O analisador semântico (`src/semantic.py`) usa inferência simples de tipos com
 
 A verificação de isolamento cobre atribuições diretas, por índice e por propriedade
 com raiz identificável. Leitura de variáveis externas é permitida. Declarações locais
-homônimas não liberam escrita externa; cada fork aninhado possui seu próprio limite.
+homônimas não liberam escrita externa; cada tarefa de `par` ou `fork`, inclusive
+aninhada, possui seu próprio limite, restaurado ao retornar à tarefa pai.
 Não há análise completa de alias ou efeitos indiretos de funções e métodos.
+A captura por valor copia escalares e vetores, mas não realiza cópia profunda dos
+objetos representados por `shared_ptr`; os canais também mantêm sua identidade.
 
 Em `core(n)`, constantes aritméticas devem representar inteiros não negativos:
 `0`, `2.0` e `4 / 2` são aceitos; `-1`, `1.5` e `1 / 2` são rejeitados.
