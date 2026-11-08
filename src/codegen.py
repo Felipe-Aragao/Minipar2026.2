@@ -325,7 +325,7 @@ class CppCodeGenerator:
                 f"{self._translate_expression(node.target.index)}, "
                 f"{self._translate_expression(node.value)})")
 
-    def generate(self, program: Program, output_name: str) -> bool:
+    def generate_text(self, program: Program) -> str:
         cpp_code = _CPP_HEADER
         
         for node in program.statements:
@@ -362,6 +362,10 @@ class CppCodeGenerator:
                     for stmt in node.statements: cpp_code += self._translate_statement(stmt, "    ")
                 else: cpp_code += self._translate_statement(node, "    ")
         cpp_code += "\n    #ifdef _WIN32\n        WSACleanup();\n    #endif\n    return 0;\n}\n"
+        return cpp_code
+
+    def generate(self, program: Program, output_name: str) -> bool:
+        cpp_code = self.generate_text(program)
 
         os.makedirs("output", exist_ok=True)
         cpp_path = os.path.join("output", f"{output_name}.cpp")
