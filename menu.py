@@ -2,6 +2,7 @@ import os
 import sys
 import subprocess
 import glob
+import re
 
 from main import compile_file
 from program_analyzer import get_program_spec
@@ -20,7 +21,7 @@ from test_orchestrator import (
 
 
 def executar_binario(output_name: str, interactive: bool = False) -> str:
-    """Executa o binário. Modo interativo quando o programa usa input()."""
+    """Executa o binario. Modo interativo quando o programa usa input()."""
     exe_ext = ".exe" if sys.platform == "win32" else ""
     exe_path = os.path.join("output", f"{output_name}{exe_ext}")
 
@@ -35,12 +36,12 @@ def executar_binario(output_name: str, interactive: bool = False) -> str:
 
     try:
         if interactive:
-            # stdin conectado ao terminal — necessário para input() no código MiniPar
+            # stdin conectado ao terminal - necessario para input() no codigo MiniPar
             result = subprocess.run([abs_exe_path], text=True)
             if result.returncode != 0:
                 print(f"[ERRO] Programa encerrou com codigo {result.returncode}.")
             return ""
-        # Programas sem input(): captura saída para exibir nos terminais participantes
+        # Programas sem input(): captura saida para exibir nos terminais participantes
         result = subprocess.run(
             [abs_exe_path],
             text=True,
@@ -80,36 +81,45 @@ def rodar_teste(test_path: str) -> None:
         return
 
     if is_joiner:
-        # Participante já acompanhou via run_joiner_progress_monitor — não reexecuta
+        # Participante ja acompanhou via run_joiner_progress_monitor - nao reexecuta
         print(f"\n  Terminal participante: {get_terminal_id()}\n")
         return
 
     set_session_phase("compiling", "Compilando...", percent=55)
-    append_session_log("Compilação iniciada.")
+    append_session_log("Compilacao iniciada.")
     success = compile_file(test_path, base_name)
     if success:
-        set_session_phase("compiling", "Compilação concluída.", percent=80)
-        append_session_log("Compilação concluída.")
+        set_session_phase("compiling", "Compilacao concluida.", percent=80)
+        append_session_log("Compilacao concluida.")
         output = executar_binario(base_name, interactive=interactive)
         finalize_test_execution(test_path, output)
     else:
-        append_session_log("Erro na compilação.")
+        append_session_log("Erro na compilacao.")
         print(f"[AVISO] Pulando execucao de {test_path} devido a erro de compilacao.")
 
 
 def obter_testes() -> list:
+    """Retorna a lista dos 11 testes oficiais da pasta tests/oficiais/ em ordem numerica (1 a 11)."""
+    oficiais_dir = os.path.join("tests", "oficiais")
+    def num_key(p):
+        m = re.search(r'\d+', os.path.basename(p))
+        return int(m.group(0)) if m else 999
+
+    if os.path.isdir(oficiais_dir):
+        return sorted(glob.glob(os.path.join(oficiais_dir, "*.minipar")), key=num_key)
+
     tests_dir = "tests"
     if not os.path.exists(tests_dir):
         print(f"[ERRO] Diretorio '{tests_dir}' nao encontrado!")
         return []
-    return sorted(glob.glob(os.path.join(tests_dir, "*.minipar")))
+    return sorted(glob.glob(os.path.join(tests_dir, "*.minipar")), key=num_key)
 
 
 def rodar_todos():
     testes = obter_testes()
     if not testes:
         return
-    print(f"\n=== Rodando todos os testes ({len(testes)} encontrados) ===")
+    print(f"\n=== Rodando todos os testes oficiais ({len(testes)} encontrados) ===")
     for teste in testes:
         rodar_teste(teste)
 
@@ -119,7 +129,7 @@ def escolher_teste():
     if not testes:
         return
 
-    print("\n=== Escolha um teste para rodar ===")
+    print("\n=== Escolha um teste oficial para rodar ===")
     for i, teste in enumerate(testes):
         nome = os.path.basename(teste)
         spec = get_program_spec(teste)
@@ -142,7 +152,7 @@ def escolher_teste():
 
 
 def _verificar_sessao_ao_iniciar() -> None:
-    """Novo terminal que entra no menu durante execução multi-terminal em andamento."""
+    """Novo terminal que entra no menu durante execucao multi-terminal em andamento."""
     action, session = check_active_session_for_new_terminal()
     if action == "join" and session:
         join_session(session)
@@ -158,10 +168,10 @@ def exibir_menu():
 
     while True:
         print("\n" + "=" * 45)
-        print(" Menu de Testes - Compilador MiniPar 2026.1")
+        print(" Menu de Testes Oficiais - MiniPar 2026.2")
         print("=" * 45)
-        print("1 - Rodar todos os testes automaticamente")
-        print("2 - Escolher 1 teste para rodar")
+        print("1 - Rodar todos os 11 testes oficiais")
+        print("2 - Escolher 1 teste oficial para rodar (1 a 11)")
         print("0 - Sair")
         print("=" * 45)
 

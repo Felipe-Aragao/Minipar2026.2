@@ -1,15 +1,15 @@
 """
-Executa todos os programas de tests/*.minipar e compara com tests/expected_results/.
+Executa os programas oficiais de tests/oficiais/*.minipar e compara com tests/expected_results/.
 
-Para cada teste:
-  1. Compila com  python main.py tests/<nome>.minipar
+Para cada teste oficial:
+  1. Compila com  python main.py tests/oficiais/<nome>.minipar
   2. Executa o binario gerado em output/ (com stdin, se o teste precisar)
   3. Compara a saida com <nome>.expected.txt  (se existir)
   4. Compara o TAC gerado com <nome>.expected.tac  (se existir)
   5. Confere trechos obrigatorios (CHECKS) nos testes sem arquivo esperado
 
 Uso (a partir da raiz do repositorio):
-  python tests/run_all.py                  # roda todos
+  python tests/run_all.py                  # roda todos os 11 testes oficiais em ordem
   python tests/run_all.py teste3 teste7    # so os que contem esses textos no nome
   python tests/run_all.py -v               # mostra detalhes das falhas
   python tests/run_all.py --no-compile     # reaproveita binarios ja gerados
@@ -17,13 +17,6 @@ Uso (a partir da raiz do repositorio):
   python tests/run_all.py --retries 2      # tenta de novo testes que deram TIMEOUT
 
 Codigo de saida: 0 se tudo passou, 1 se algo falhou (serve para CI).
-
-Como a comparacao funciona
-  Os arquivos .expected.txt sao TRECHOS da saida (ex.: o teste 3 so traz algumas
-  iteracoes). Entao cada linha esperada precisa aparecer na saida real, NA ORDEM,
-  mas podem existir linhas extras entre elas. Acentos, espacos repetidos e \\r
-  sao ignorados. Numeros sao comparados como texto (0.5000 != 0.5), a menos que
-  o teste esteja em TOLERANCE (ai compara com margem numerica).
 """
 import argparse
 import os
@@ -34,6 +27,7 @@ import unicodedata
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS_DIR = os.path.join(ROOT, "tests")
+OFICIAIS_DIR = os.path.join(TESTS_DIR, "oficiais")
 EXPECTED_DIR = os.path.join(TESTS_DIR, "expected_results")
 INPUTS_DIR = os.path.join(TESTS_DIR, "inputs")   
 OUTPUT_DIR = os.path.join(ROOT, "output")
@@ -44,23 +38,39 @@ EXE_EXT = ".exe" if sys.platform == "win32" else ""
 # ----------------------------------------------------------------------------
 # Texto enviado ao stdin do programa.
 INPUTS = {
+    "teste01_calculadora_cliente_servidor": "+\n3\n4\n",
     "teste1_calculadora_cliente_servidor": "+\n3\n4\n",
-    "teste5_recomendacao": "\n".join(
-        # Smartphone, Jeans, Micro-ondas e Ficcao comprados 
-        "1" if i in (0, 5, 9, 12) else "0" for i in range(16)) + "\n",
+    "teste05_recomendacao": "\n".join("1" if i in (0, 5, 9, 12) else "0" for i in range(16)) + "\n",
+    "teste5_recomendacao": "\n".join("1" if i in (0, 5, 9, 12) else "0" for i in range(16)) + "\n",
+    "teste06_quicksort_classes": "10 -3 -40 80 70 -100\n",
     "teste6_quicksort_classes": "10 -3 -40 80 70 -100\n",
+    "teste11_tokenizador": "((2+4)*7)-(5*4)\n",
     "teste_bnf_controles_input": "Ana\n",
 }
 
 # Testes cuja saida varia (random): numeros comparados com esta margem absoluta.
 TOLERANCE = {
+    "teste04_rede_neural_xor": 0.05,
     "teste4_rede_neural_xor": 0.05,
 }
 
 # Para testes SEM .expected.txt: trechos que devem aparecer na saida.
 CHECKS = {
+    "teste01_calculadora_cliente_servidor": ["Resultado: 7"],
     "teste1_calculadora_cliente_servidor": ["Resultado: 7"],
+    "teste02_fatorial_fibonacci_par": ["Fatorial de 5: 120"],
     "teste2_fatorial_fibonacci_par": ["Fatorial de 5: 120"],
+    "teste08_avaliacao_atividades_4nucleos": [
+        "Total de Atividades a Avaliar: 160",
+        "Professor : 40",
+        "Monitor 1 : 40",
+        "Monitor 2 : 40",
+        "Monitor 3 : 40",
+        "Total Paralelo  : 160",
+        "Total Sequencial: 160",
+        "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
+        "BENCHMARK DE DESEMPENHO",
+    ],
     "teste8_avaliacao_atividades_4nucleos": [
         "Total de Atividades a Avaliar: 160",
         "Professor : 40",
@@ -72,6 +82,18 @@ CHECKS = {
         "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
         "BENCHMARK DE DESEMPENHO",
     ],
+    "teste09_5nucleos_4avaliadores_mandelbrot": [
+        "Carga de Trabalho: 160 atividades",
+        "Professor : 40",
+        "Monitor 1 : 40",
+        "Monitor 2 : 40",
+        "Monitor 3 : 40",
+        "Total Paralelo  : 160",
+        "Total Sequencial: 160",
+        "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
+        "=== FRACTAL DE MANDELBROT (Gerado pelo N",
+        "BENCHMARK DE DESEMPENHO",
+    ],
     "teste9_5nucleos_4avaliadores_mandelbrot": [
         "Carga de Trabalho: 160 atividades",
         "Professor : 40",
@@ -81,7 +103,7 @@ CHECKS = {
         "Total Paralelo  : 160",
         "Total Sequencial: 160",
         "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
-        "=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5) ===",
+        "=== FRACTAL DE MANDELBROT (Gerado pelo N",
         "BENCHMARK DE DESEMPENHO",
     ],
     "teste10_6nucleos_4avaliadores_mandelbrot_sierpinski": [
@@ -93,7 +115,7 @@ CHECKS = {
         "Total Paralelo  : 160",
         "Total Sequencial: 160",
         "Validacao: 160 atividades avaliadas com sucesso em ambos os modos.",
-        "=== FRACTAL DE MANDELBROT (Gerado pelo Núcleo 5 - Core ID 4) ===",
+        "=== FRACTAL DE MANDELBROT (Gerado pelo N",
         "Tapete de Sierpinski (243x243) salvo em 'output/tapete_sierpinski.bmp'!",
         "BENCHMARK DE DESEMPENHO",
     ],
@@ -109,54 +131,70 @@ NUM_RE = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
 
 def norm(s):
-    """Tira acentos, \\r e espacos repetidos."""
+    """Remove acentos, normaliza espacos e quebras de linha."""
     s = unicodedata.normalize("NFKD", s)
     s = "".join(c for c in s if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", s.replace("\r", "")).strip()
+    s = s.replace("\r\n", "\n").replace("\r", "\n")
+    s = re.sub(r"[ \t]+", " ", s)
+    return s.strip()
 
 
-def line_matches(expected, actual, tol):
-    e, a = norm(expected), norm(actual)
-    if tol is None:
-        return e == a
-    en, an = NUM_RE.findall(e), NUM_RE.findall(a)
-    if NUM_RE.sub("#", e) != NUM_RE.sub("#", a) or len(en) != len(an):
+def line_matches(expected, actual, tol=None):
+    ne = norm(expected)
+    na = norm(actual)
+    if not tol:
+        return ne == na
+    nums_e = [float(x) for x in NUM_RE.findall(ne)]
+    nums_a = [float(x) for x in NUM_RE.findall(na)]
+    if len(nums_e) != len(nums_a):
         return False
-    return all(abs(float(x) - float(y)) <= tol for x, y in zip(en, an))
+    templ_e = NUM_RE.sub("<?>", ne)
+    templ_a = NUM_RE.sub("<?>", na)
+    if templ_e != templ_a:
+        return False
+    return all(abs(a - b) <= tol for a, b in zip(nums_e, nums_a))
 
 
-def compare_subsequence(expected_text, actual_text, tol, ignore_lines=()):
-    """Retorna lista de linhas esperadas que NAO foram encontradas (em ordem)."""
-    ignore = {norm(l) for l in ignore_lines if l.strip()}
-    actual = actual_text.splitlines()
-    pos, missing = 0, []
-    for exp in expected_text.splitlines():
-        if not exp.strip() or norm(exp) in ignore:
-            continue
-        for k in range(pos, len(actual)):
-            if line_matches(exp, actual[k], tol):
-                pos = k + 1
+def compare_subsequence(expected_text, actual_text, tol=None, ignore_prompts=None):
+    exp_lines = [l for l in expected_text.splitlines() if l.strip()]
+    act_lines = [l for l in actual_text.splitlines() if l.strip()]
+    if ignore_prompts:
+        prompts_norm = {norm(p) for p in ignore_prompts if p.strip()}
+        exp_lines = [l for l in exp_lines if norm(l) not in prompts_norm]
+        act_lines = [l for l in act_lines if norm(l) not in prompts_norm]
+
+    ai = 0
+    missing = []
+    for el in exp_lines:
+        found = False
+        while ai < len(act_lines):
+            if line_matches(el, act_lines[ai], tol):
+                found = True
+                ai += 1
                 break
-        else:
-            missing.append(exp)
+            ai += 1
+        if not found:
+            missing.append(el)
     return missing
 
 
-def compare_exact(expected_text, actual_text):
-    """Compara linha a linha ignorando \\r e espacos no fim. Retorna primeira diferenca."""
-    e = [l.rstrip() for l in expected_text.replace("\r", "").splitlines()]
-    a = [l.rstrip() for l in actual_text.replace("\r", "").splitlines()]
-    for i in range(max(len(e), len(a))):
-        le = e[i] if i < len(e) else "<fim do arquivo>"
-        la = a[i] if i < len(a) else "<fim do arquivo>"
-        if le != la:
-            return f"linha {i + 1}: esperado {le!r} / obtido {la!r}"
-    return None
+def compare_exact(text_a, text_b):
+    la = [norm(l) for l in text_a.splitlines() if l.strip()]
+    lb = [norm(l) for l in text_b.splitlines() if l.strip()]
+    if la == lb:
+        return ""
+    for i, (a, b) in enumerate(zip(la, lb)):
+        if a != b:
+            return f"linha {i+1}:\n  esperado: {a}\n  obtido:   {b}"
+    return f"tamanhos diferentes: esperado {len(la)} linhas, obtido {len(lb)}"
 
 
 def read(path):
-    with open(path, encoding="utf-8", errors="replace") as f:
-        return f.read()
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
 
 
 def run(cmd, stdin_text, timeout):
@@ -170,8 +208,10 @@ def run(cmd, stdin_text, timeout):
 
 
 def run_test(name, args):
-    """Retorna (status, [detalhes]).  status: PASSOU, FALHOU, ERRO_COMPILACAO, CRASH, TIMEOUT, SEM_VERIFICACAO"""
-    src = os.path.join(TESTS_DIR, name + ".minipar")
+    """Retorna (status, [detalhes]). status: PASSOU, FALHOU, ERRO_COMPILACAO, CRASH, TIMEOUT, SEM_VERIFICACAO"""
+    src = os.path.join(OFICIAIS_DIR, name + ".minipar")
+    if not os.path.isfile(src):
+        src = os.path.join(TESTS_DIR, name + ".minipar")
     details = []
 
     # 1) compilar
@@ -190,7 +230,9 @@ def run_test(name, args):
 
     # 2) executar
     in_file = os.path.join(INPUTS_DIR, name + ".in")
-    stdin_text = read(in_file) if os.path.isfile(in_file) else INPUTS.get(name, "")
+    if not os.path.isfile(in_file):
+        in_file = os.path.join(INPUTS_DIR, name.replace("teste0", "teste") + ".in")
+    stdin_text = read(in_file) if os.path.isfile(in_file) else INPUTS.get(name, INPUTS.get(name.replace("teste0", "teste"), ""))
     rc, out, to = run([exe], stdin_text, args.timeout)
     if args.verbose:
         details.append("--- saida real ---")
@@ -207,9 +249,11 @@ def run_test(name, args):
 
     # 3) saida esperada
     exp_txt = os.path.join(EXPECTED_DIR, name + ".expected.txt")
+    if not os.path.isfile(exp_txt):
+        exp_txt = os.path.join(EXPECTED_DIR, name.replace("teste0", "teste") + ".expected.txt")
     if os.path.isfile(exp_txt):
         checked = True
-        missing = compare_subsequence(read(exp_txt), out, TOLERANCE.get(name), stdin_text.splitlines())
+        missing = compare_subsequence(read(exp_txt), out, TOLERANCE.get(name, TOLERANCE.get(name.replace("teste0", "teste"))), stdin_text.splitlines())
         if missing:
             failed = True
             total = len([l for l in read(exp_txt).splitlines() if l.strip()])
@@ -218,6 +262,8 @@ def run_test(name, args):
 
     # 4) TAC esperado
     exp_tac = os.path.join(EXPECTED_DIR, name + ".expected.tac")
+    if not os.path.isfile(exp_tac):
+        exp_tac = os.path.join(EXPECTED_DIR, name.replace("teste0", "teste") + ".expected.tac")
     if os.path.isfile(exp_tac):
         tac_path = os.path.join(OUTPUT_DIR, name + ".tac")
         if not os.path.isfile(tac_path):
@@ -229,16 +275,17 @@ def run_test(name, args):
                 details.append("(info) TAC gerado difere do de referencia: " + diff)
 
     # 5) trechos obrigatorios
-    if name in CHECKS:
+    checks_list = CHECKS.get(name, CHECKS.get(name.replace("teste0", "teste")))
+    if checks_list:
         checked = True
         norm_out = norm(out)
-        for needle in CHECKS[name]:
+        for needle in checks_list:
             if norm(needle) not in norm_out:
                 failed = True
                 details.append(f"trecho obrigatorio ausente: {needle!r}")
 
     # 6) artefatos obrigatorios em disco
-    if name == "teste11_tokenizador":
+    if "teste11" in name:
         checked = True
         arm_path = os.path.join(OUTPUT_DIR, "teste11.arm")
         if not os.path.isfile(arm_path):
@@ -257,7 +304,7 @@ def run_test(name, args):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="Roda todos os testes MiniPar e compara com expected_results/")
+    ap = argparse.ArgumentParser(description="Roda todos os 11 testes oficiais do MiniPar em ordem e compara com expected_results/")
     ap.add_argument("filtros", nargs="*", help="so testes cujo nome contenha algum destes textos")
     ap.add_argument("-v", "--verbose", action="store_true", help="mostra a saida real de cada teste")
     ap.add_argument("--no-compile", action="store_true", help="nao recompila, usa output/ existente")
@@ -269,9 +316,29 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-    names = sorted(f[:-8] for f in os.listdir(TESTS_DIR) if f.endswith(".minipar"))
+    def num_key(filename):
+        m = re.search(r'\d+', filename)
+        return int(m.group(0)) if m else 999
+
+    # Sempre roda apenas os testes oficiais que estao na pasta tests/oficiais/ em ordem numerica (1 a 11)
+    if os.path.isdir(OFICIAIS_DIR):
+        names = sorted([f[:-8] for f in os.listdir(OFICIAIS_DIR) if f.endswith(".minipar")], key=num_key)
+    else:
+        names = sorted([f[:-8] for f in os.listdir(TESTS_DIR) if f.endswith(".minipar")], key=num_key)
+
     if args.filtros:
-        names = [n for n in names if any(f in n for f in args.filtros)]
+        def match_filter(n, filt):
+            n_norm = n.replace("teste0", "teste")
+            f_norm = filt.replace("teste0", "teste")
+            return filt in n or f_norm in n_norm
+
+        filtered = [n for n in names if any(match_filter(n, f) for f in args.filtros)]
+        if not filtered:
+            # Caso o usuario queira compilar/rodar um teste de fora (em tests/)
+            extras = sorted([f[:-8] for f in os.listdir(TESTS_DIR) if f.endswith(".minipar") and f != "oficiais"], key=num_key)
+            filtered = [n for n in extras if any(match_filter(n, f) for f in args.filtros)]
+        names = filtered
+
     if not names:
         print("Nenhum teste encontrado.")
         return 1

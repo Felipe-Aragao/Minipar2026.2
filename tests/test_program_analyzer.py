@@ -14,7 +14,10 @@ from program_analyzer import analyze_program, get_program_spec
 
 class TestProgramAnalyzer(unittest.TestCase):
     def test_teste1_local_concurrent_no_multi_computer(self):
-        spec = get_program_spec(str(ROOT / "tests" / "teste1_calculadora_cliente_servidor.minipar"))
+        p = ROOT / "tests" / "oficiais" / "teste01_calculadora_cliente_servidor.minipar"
+        if not p.exists():
+            p = ROOT / "tests" / "teste1_calculadora_cliente_servidor.minipar"
+        spec = get_program_spec(str(p))
         self.assertTrue(spec["has_par"])
         self.assertEqual(spec["channel_count"], 4)
         self.assertEqual(spec["input_count"], 3)

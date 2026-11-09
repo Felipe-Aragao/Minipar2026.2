@@ -35,7 +35,9 @@ def get_terminal_id() -> str:
 
 
 def get_test_spec(filename: str) -> Optional[dict[str, Any]]:
-    path = os.path.join("tests", os.path.basename(filename))
+    path = os.path.join("tests", "oficiais", os.path.basename(filename))
+    if not os.path.isfile(path):
+        path = os.path.join("tests", os.path.basename(filename))
     if not os.path.isfile(path):
         return None
     return get_program_spec(path)
@@ -489,7 +491,9 @@ def finalize_test_execution(test_path: str, output: str = "") -> None:
 
 
 def get_spec_summary(filename: str) -> Optional[dict[str, Any]]:
-    path = os.path.join("tests", os.path.basename(filename))
+    path = os.path.join("tests", "oficiais", os.path.basename(filename))
+    if not os.path.isfile(path):
+        path = os.path.join("tests", os.path.basename(filename))
     if not os.path.isfile(path):
         return None
     spec = get_program_spec(path)
