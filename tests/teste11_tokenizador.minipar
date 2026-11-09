@@ -389,5 +389,4 @@ seq {
 
     # Salva o arquivo .arm compativel com CPUlator
     write_file("output/teste11.arm", comp.assemblyARM);
-    write_file("tests/arm/teste11_expressao1.arm", comp.assemblyARM);
 }
