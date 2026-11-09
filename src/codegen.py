@@ -76,6 +76,8 @@ class CppCodeGenerator:
                 return f"__minipar_save_bmp({args})"
             if node.name == "launch_file":
                 return f"__minipar_launch_file({args})"
+            if node.name in ("write_file", "save_file"):
+                return f"__minipar_write_file({args})"
             return f"{node.name}({args})"
            
         if isinstance(node, CChannelExpr):

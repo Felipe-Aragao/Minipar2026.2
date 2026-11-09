@@ -834,6 +834,7 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `to_string(v)` | `to_string(v)` → `string` | Traduzida para `__to_string`; aceita números, booleanos e strings |
 | `parse_ints(s)` | `parse_ints(string)` → `list` | Parseia inteiros de string separados por espaço |
 | `fmt(v, casas)` | `fmt(number, number)` → `string` | Formata casas decimais por `__fmt`; o semântico verifica dois argumentos |
+| `write_file(p, c)` | `write_file(string, string)` → `number` | Grava o conteúdo textual no arquivo especificado em disco. Retorna 1 se sucesso, 0 se falha. |
 
 ### Métodos de Lista (acesso via ponto)
 
