@@ -835,6 +835,8 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `parse_ints(s)` | `parse_ints(string)` → `list` | Parseia inteiros de string separados por espaço |
 | `fmt(v, casas)` | `fmt(number, number)` → `string` | Formata casas decimais por `__fmt`; o semântico verifica dois argumentos |
 | `write_file(p, c)` | `write_file(string, string)` → `number` | Grava o conteúdo textual no arquivo especificado em disco. Retorna 1 se sucesso, 0 se falha. |
+| `save_bmp(caminho, imagem)` | `save_bmp(string, matriz)` → `number` | Exporta matriz retangular como BMP de 24 bits; exige dois argumentos |
+| `launch_file(caminho)` | `launch_file(string)` → `number` | Solicita abertura pelo aplicativo padrão do sistema; exige um argumento |
 
 ### Métodos de Lista (acesso via ponto)
 
@@ -1222,13 +1224,26 @@ O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 | `ISemantico` | `C_Semantico` | AST → validação, símbolos e diagnósticos |
 | `ITabelaSimbolos` | `C_TabelaSimbolos` | Declarações e escopos → consultas e histórico de símbolos |
 | `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
+| `ICodegen` | `C_Codegen` | AST → C++ em memória ou arquivo compilado via g++ |
+
+`ICodegen.gerar_texto(programa)` retorna o C++ em memória sem gravar arquivo nem
+invocar o compilador. `ICodegen.gerar_codigo(programa, nome_saida)` grava o `.cpp`,
+invoca g++ com C++20 e `-O3` e retorna um booleano que indica sucesso da compilação.
+O componente não executa o binário produzido. O terminal utiliza `C_Codegen`;
+a API `analisar` utiliza `C_Codegen.gerar_texto` após gerar o TAC e devolve o
+campo `cpp`, sem compilar ou executar durante a análise. Erros de geração entram
+na lista `erros` com fase `codegen`, preservando as fases concluídas.
 
 O analisador semântico utiliza `ITabelaSimbolos` para registrar declarações,
 consultar o nome visível mais próximo e controlar a entrada e saída de escopos.
 O componente rejeita duplicatas no mesmo escopo, permite nomes iguais em escopos
 aninhados e mantém o histórico das declarações para a interface. A localização
-da declaração visível também fundamenta a verificação de isolamento dos forks.
+da declaração visível também fundamenta a verificação de isolamento de `fork` e `par`.
 Cada análise cria sua própria tabela. Essa organização não altera a sintaxe.
+
+Os pseudocódigos dos itens 3 a 6 do relatório estão em
+[Pseudocódigos do front-end](docs/pseudocodigos_frontend.md), com correspondência
+aos componentes e limites da implementação.
 
 A API preserva os resultados das fases concluídas e registra linha e coluna nos
 erros léxicos, sintáticos e semânticos. Os nós da AST expõem `line` e `col`;

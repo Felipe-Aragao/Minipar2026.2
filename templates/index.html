@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minipar IDE</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+    <link rel="stylesheet" href="/static/vendor/codemirror.min.css">
+    <link rel="stylesheet" href="/static/vendor/dracula.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
@@ -17,12 +17,21 @@
             <ul id="test-list" class="test-list"></ul>
         </aside>
 
+        <!-- Divisória do Explorer / Sidebar (Redimensionamento Lateral) -->
+        <div class="sidebar-resizer" id="sidebar-resizer" title="Arraste para redimensionar o Explorer ou clique duas vezes para restaurar">
+            <div class="resizer-handle"></div>
+            <button class="resizer-toggle-btn" id="btn-toggle-sidebar" title="Recolher / Expandir Explorer">
+                <svg id="sidebar-toggle-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </button>
+        </div>
+
         <main class="main-content">
             <header class="topbar">
                 <div class="file-info">
                     <span id="current-file">ide_temp.minipar</span>
                 </div>
                 <div class="actions">
+                    <a href="/" class="btn secondary" style="text-decoration: none; display: inline-flex; align-items: center; gap: 4px; color: inherit;">🎓 Modo Didático</a>
                     <button id="btn-run" class="btn primary">▶ Compile &amp; Run</button>
                     <button id="btn-clear" class="btn secondary">Clear</button>
                 </div>
@@ -48,6 +57,14 @@
                 </div>
             </div>
 
+            <!-- Divisória do Terminal Output (Redimensionamento Vertical: Subida e Descida) -->
+            <div class="terminal-resizer" id="terminal-resizer" title="Arraste para subir ou descer o Terminal ou clique duas vezes para restaurar">
+                <div class="resizer-handle-h"></div>
+                <button class="resizer-toggle-btn-h" id="btn-toggle-terminal" title="Recolher / Expandir Terminal">
+                    <svg id="terminal-toggle-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+            </div>
+
             <footer class="terminal">
                 <div class="terminal-header">Terminal Output</div>
                 <pre id="terminal-output">Ready...</pre>
@@ -55,8 +72,8 @@
         </main>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/clike/clike.min.js"></script>
+    <script src="/static/vendor/codemirror.min.js"></script>
+    <script src="/static/vendor/clike.min.js"></script>
     <script src="/static/js/script.js"></script>
 </body>
 </html>

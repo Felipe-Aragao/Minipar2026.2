@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniPar 2026.2 — Ambiente Didático de Compilação</title>
+    <!-- Fontes profissionais -->
+
+    <!-- CodeMirror -->
+    <link rel="stylesheet" href="/static/vendor/codemirror.min.css">
+
+    <!-- Estilo Didático Personalizado -->
+    <link rel="stylesheet" href="/static/css/didatico.css">
+</head>
+<body class="theme-light">
+    <!-- BARRA SUPERIOR (HEADER) -->
+    <header class="app-header">
+        <div class="header-left">
+            <div class="brand">
+                <span class="brand-title">MiniPar <span class="version-tag">2026.2</span></span>
+                <span class="brand-subtitle">Compilador Educacional</span>
+            </div>
+            <div class="pipeline-status" id="pipeline-status">
+                <span class="status-dot"></span>
+                <span class="status-label">Pronto para compilar</span>
+            </div>
+        </div>
+
+        <div class="header-center">
+            <div class="example-selector-wrapper">
+                <label for="select-example">Carregar Exemplo:</label>
+                <select id="select-example" class="custom-select">
+                    <option value="" disabled selected>Selecione um programa...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="header-right">
+            <button id="btn-theme-toggle" class="btn-ghost" title="Alternar tema claro/escuro" aria-label="Tema">
+                <span class="theme-icon">🌓</span>
+                <span class="theme-text">Tema</span>
+            </button>
+            <a href="/ide" class="nav-switch-link" title="Acessar IDE do Desenvolvedor de 2026.1">
+                <span>Modo Desenvolvedor (IDE)</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- BARRA DE FASES E AÇÕES DO COMPILADOR (7 BOTÕES DA DESCRIÇÃO) -->
+    <nav class="pipeline-nav">
+        <div class="phase-buttons" role="tablist">
+            <button class="phase-btn active" data-phase="tokens" role="tab" id="tab-tokens">
+                <span class="phase-num">1</span>
+                <span class="phase-name">Tokens (Léxico)</span>
+            </button>
+            <button class="phase-btn" data-phase="ast" role="tab" id="tab-ast">
+                <span class="phase-num">2</span>
+                <span class="phase-name">Árvore AST (Sintático)</span>
+            </button>
+            <button class="phase-btn" data-phase="semantic" role="tab" id="tab-semantic">
+                <span class="phase-num">3</span>
+                <span class="phase-name">Análise Semântica</span>
+            </button>
+            <button class="phase-btn" data-phase="tac" role="tab" id="tab-tac">
+                <span class="phase-num">4</span>
+                <span class="phase-name">TAC (3 Endereços)</span>
+            </button>
+            <button class="phase-btn" data-phase="cpp" role="tab" id="tab-cpp">
+                <span class="phase-num">5</span>
+                <span class="phase-name">Código C++ Gerado</span>
+            </button>
+            <button class="phase-btn" data-phase="execution" role="tab" id="tab-execution">
+                <span class="phase-num">6</span>
+                <span class="phase-name">Terminal &amp; Execução</span>
+            </button>
+        </div>
+
+        <div class="action-buttons">
+            <button id="btn-download-exe" class="btn-action btn-download" title="Compila com g++ -O3 e faz o download do executável .exe">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Baixar .exe</span>
+            </button>
+            <button id="btn-run-code" class="btn-action btn-run" title="Compilar e Executar programa">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                <span>Executar</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ÁREA PRINCIPAL DIVIDIDA (SPLIT WORKSPACE) -->
+    <main class="workspace-container">
+        <!-- PAINEL ESQUERDO: EDITOR DE CÓDIGO MINIPAR -->
+        <section class="pane pane-editor">
+            <div class="pane-header">
+                <div class="pane-title">
+                    <span class="pane-label">Código Fonte MiniPar</span>
+                    <span id="current-filename" class="file-badge">novo_programa.minipar</span>
+                </div>
+                <div class="pane-tools">
+                    <button id="btn-clear-code" class="btn-tool" title="Limpar editor">Limpar</button>
+                    <button id="btn-copy-code" class="btn-tool" title="Copiar código">Copiar</button>
+                    <button id="btn-analyze" class="btn-tool btn-primary-tool" title="Atualizar todas as fases">Analisar Agora</button>
+                </div>
+            </div>
+
+            <div class="editor-wrapper">
+                <textarea id="editor-source"></textarea>
+            </div>
+
+            <div class="editor-footer">
+                <div class="editor-stats">
+                    <span id="stat-lines">Linhas: 1</span>
+                    <span class="stat-sep">•</span>
+                    <span id="stat-chars">Caracteres: 0</span>
+                </div>
+                <div id="editor-feedback" class="editor-feedback"></div>
+            </div>
+        </section>
+
+        <!-- DIVISÓRIA REDIMENSIONÁVEL / RETRÁTIL (SPLIT-RESIZER) -->
+        <div class="pane-resizer" id="pane-resizer" title="Arraste para redimensionar lateralmente ou clique duas vezes para restaurar">
+            <div class="resizer-handle"></div>
+            <button class="resizer-toggle-btn" id="btn-toggle-editor" title="Recolher / Expandir editor">
+                <svg id="resizer-toggle-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+        </div>
+
+        <!-- PAINEL DIREITO: FASES DO COMPILADOR -->
+        <section class="pane pane-didactic">
+            <!-- 1. PAINEL DE TOKENS (LÉXICO) -->
+            <div class="didactic-view active" id="view-tokens">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Análise Léxica — Tabela de Tokens</h3>
+                        <p class="view-description">Passe o mouse ou clique em qualquer linha para destacar a localização exata no editor.</p>
+                    </div>
+                    <div class="view-filter-group">
+                        <input type="text" id="token-search" class="input-search" placeholder="Filtrar por lexema...">
+                        <select id="token-filter-type" class="custom-select-sm">
+                            <option value="ALL">Todos os tipos</option>
+                            <option value="IDENTIFIER">Identificadores</option>
+                            <option value="KEYWORD">Palavras-chave</option>
+                            <option value="NUMBER">Números</option>
+                            <option value="STRING">Strings</option>
+                            <option value="OPERATOR">Operadores</option>
+                            <option value="DELIMITER">Delimitadores</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="tokens-summary" id="tokens-summary">
+                    <span class="summary-chip" id="chip-total-tokens">Total: 0 tokens</span>
+                    <span class="summary-chip" id="chip-unique-lexemes">0 lexemas únicos</span>
+                </div>
+
+                <div class="table-scroll-container">
+                    <table class="tokens-table" id="table-tokens">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;">#</th>
+                                <th style="width: 150px;">Tipo de Token</th>
+                                <th>Lexema Reconhecido</th>
+                                <th style="width: 80px;">Linha</th>
+                                <th style="width: 80px;">Coluna</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tokens-tbody">
+                            <tr class="empty-row"><td colspan="5">Nenhum token analisado. Digite código ou selecione um exemplo.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 2. PAINEL DA AST (ÁRVORE SINTÁTICA INTERATIVA) -->
+            <div class="didactic-view" id="view-ast">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Árvore Sintática Abstrata (AST)</h3>
+                        <p class="view-description">Representação visual hierárquica. Clique em um nó para expandir/recolher. Use o scroll do mouse para zoom e arraste para navegar.</p>
+                    </div>
+                    <div class="ast-controls">
+                        <button id="btn-ast-zoom-in" class="btn-ctrl" title="Aumentar zoom">+</button>
+                        <button id="btn-ast-zoom-out" class="btn-ctrl" title="Diminuir zoom">-</button>
+                        <button id="btn-ast-fit" class="btn-ctrl" title="Ajustar visualização">Ajustar</button>
+                        <button id="btn-ast-expand-all" class="btn-ctrl" title="Expandir todos os nós">Expandir Tudo</button>
+                        <button id="btn-ast-toggle-mode" class="btn-ctrl" title="Alternar visão gráfica / JSON">Ver JSON</button>
+                    </div>
+                </div>
+
+                <div class="ast-legend">
+                    <span class="legend-item"><span class="legend-dot dot-program"></span>Raiz / Programa</span>
+                    <span class="legend-item"><span class="legend-dot dot-block"></span>Blocos (seq/par/fork)</span>
+                    <span class="legend-item"><span class="legend-dot dot-decl"></span>Declarações / Classes</span>
+                    <span class="legend-item"><span class="legend-dot dot-control"></span>Controle de Fluxo</span>
+                    <span class="legend-item"><span class="legend-dot dot-expr"></span>Expressões &amp; Literais</span>
+                </div>
+
+                <!-- Canvas Gráfico D3 -->
+                <div class="ast-canvas-container" id="ast-canvas-wrapper">
+                    <svg id="ast-svg" class="ast-svg-canvas"></svg>
+                    <div id="ast-tooltip" class="ast-tooltip"></div>
+                </div>
+
+                <!-- Visão Alternativa JSON (Oculta por padrão) -->
+                <div class="ast-json-container" id="ast-json-wrapper" style="display: none;">
+                    <pre id="ast-json-output">Nenhuma árvore disponível.</pre>
+                </div>
+            </div>
+
+            <!-- 3. PAINEL DE ANÁLISE SEMÂNTICA -->
+            <div class="didactic-view" id="view-semantic">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Análise Semântica &amp; Tabela de Símbolos</h3>
+                        <p class="view-description">Verificação estática de tipos, visibilidade de escopos e isolamento de tarefas concorrentes (Fork/Join).</p>
+                    </div>
+                </div>
+
+                <div class="semantic-status-card pending" id="semantic-status-card">
+                    <div class="status-icon" id="semantic-status-icon">…</div>
+                    <div class="status-details">
+                        <h4 id="semantic-status-title">Análise semântica não executada</h4>
+                        <p id="semantic-status-desc">Execute a análise para verificar o programa.</p>
+                    </div>
+                </div>
+
+                <div class="semantic-sections">
+                    <div class="semantic-box">
+                        <div class="box-header">
+                            <h4>Tabela de Símbolos Coletados</h4>
+                            <span class="box-badge" id="badge-symbols-count">0 símbolos</span>
+                        </div>
+                        <div class="table-scroll-container">
+                            <table class="symbols-table" id="table-symbols">
+                                <thead>
+                                    <tr>
+                                        <th>Identificador</th>
+                                        <th>Tipo / Retorno</th>
+                                        <th>Escopo</th>
+                                        <th>Classe / Pertence a</th>
+                                        <th>Linha</th>
+                                        <th>Coluna</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="symbols-tbody">
+                                    <tr class="empty-row"><td colspan="6">Tabela de símbolos vazia.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="semantic-box">
+                        <div class="box-header">
+                            <h4>Regras de Paralelismo &amp; Diagnósticos</h4>
+                        </div>
+                        <div class="diagnostics-list" id="diagnostics-list">
+                            <div class="diagnostic-item info">
+                                <span class="diag-bullet">•</span>
+                                <div class="diag-text">
+                                    <strong>Concorrência MiniPar:</strong> Tarefas de <code>par</code> e <code>fork</code> executam em paralelo e rejeitam escritas diretas em variáveis externas. Use canais para comunicação e <code>join</code> para sincronização.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. PAINEL TAC (THREE-ADDRESS CODE) -->
+            <div class="didactic-view" id="view-tac">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Código Intermediário de Três Endereços (TAC)</h3>
+                        <p class="view-description">Representação intermediária linearizada e independente de máquina gerada pelo compilador.</p>
+                    </div>
+                    <div class="view-tools">
+                        <button id="btn-copy-tac" class="btn-tool">Copiar TAC</button>
+                    </div>
+                </div>
+
+                <div class="tac-container">
+                    <div class="code-viewer" id="tac-code-container">
+                        <pre id="tac-output">Nenhum TAC gerado ainda.</pre>
+                    </div>
+                    <div class="tac-guide">
+                        <h4>Guia Didático do TAC</h4>
+                        <ul>
+                            <li><code>t0, t1, ...</code>: Variáveis temporárias geradas para armazenar resultados de subexpressões.</li>
+                            <li><code>label_X:</code>: Rótulos alvos para desvios condicionais e incondicionais.</li>
+                            <li><code>GOTO / IF_FALSE</code>: Controle de fluxo primitivo para loops e condicionais.</li>
+                            <li><code>PARAM / CALL</code>: Convenção de empilhamento e invocação de rotinas e métodos.</li>
+                            <li><code>FORK / JOIN</code>: Primitivas de divisão e barreira de sincronização concorrente.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. PAINEL C++ GERADO -->
+            <div class="didactic-view" id="view-cpp">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Código C++20 Transpilado</h3>
+                        <p class="view-description">Código-alvo gerado a partir da AST para compilação nativa com <code>g++ -std=c++20 -O3</code>.</p>
+                    </div>
+                    <div class="view-tools">
+                        <button id="btn-copy-cpp" class="btn-tool">Copiar C++</button>
+                    </div>
+                </div>
+
+                <div class="cpp-container">
+                    <div class="code-viewer">
+                        <pre id="cpp-output">Nenhum código C++ gerado ainda.</pre>
+                    </div>
+                    <div class="cpp-notes">
+                        <h4>Mapeamento Didático para C++</h4>
+                        <div class="mapping-grid">
+                            <div class="map-card">
+                                <strong>Blocos par { }</strong>
+                                <span>Mapeados para <code>std::vector&lt;std::thread&gt;</code> com <code>.join()</code> automático.</span>
+                            </div>
+                            <div class="map-card">
+                                <strong>Objetos &amp; Classes</strong>
+                                <span>Gerenciados com <code>std::shared_ptr&lt;T&gt;</code> para evitar vazamentos de memória.</span>
+                            </div>
+                            <div class="map-card">
+                                <strong>Canais de Rede</strong>
+                                <span>Comunicação via <code>MiniParChannel</code> utilizando Sockets TCP nativos.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 6. PAINEL DE TERMINAL & EXECUÇÃO -->
+            <div class="didactic-view" id="view-execution">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h3>Saída de Execução (Terminal)</h3>
+                        <p class="view-description">Saída padrão do binário compilado rodando no ambiente local.</p>
+                    </div>
+                    <div class="view-tools">
+                        <button id="btn-clear-terminal" class="btn-tool">Limpar Terminal</button>
+                    </div>
+                </div>
+
+                <div class="terminal-container">
+                    <div class="terminal-meta-bar">
+                        <span id="term-status" class="term-status-chip">Aguardando execução</span>
+                        <span id="term-time" class="term-time-chip">Tempo: --</span>
+                    </div>
+
+                    <pre id="didactic-terminal-output" class="terminal-screen">Pronto para executar. Clique no botão 'Executar' na barra superior.</pre>
+
+                    <!-- Área para entradas caso o programa precise de stdin -->
+                    <div class="terminal-input-bar" id="terminal-input-bar">
+                        <label for="terminal-user-input">Entrada (stdin):</label>
+                        <textarea id="terminal-user-input" class="input-terminal" rows="3" aria-label="Entradas do programa" placeholder="Uma resposta por linha. Espaços e vírgulas fazem parte da resposta."></textarea>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- TOAST / NOTIFICAÇÃO FLUTUANTE DISCRETA -->
+    <div id="toast" class="toast">Mensagem</div>
+
+    <!-- SCRIPTS -->
+    <script src="/static/vendor/d3.min.js"></script>
+    <script src="/static/vendor/codemirror.min.js"></script>
+    <script src="/static/vendor/clike.min.js"></script>
+    <script src="/static/vendor/matchbrackets.min.js"></script>
+    <script src="/static/vendor/closebrackets.min.js"></script>
+    <script src="/static/vendor/active-line.min.js"></script>
+    <script src="/static/js/didatico.js"></script>
+</body>
+</html>

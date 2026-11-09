@@ -1,8 +1,17 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
+from contextlib import contextmanager
+from io import BytesIO
+from tempfile import TemporaryDirectory
+from werkzeug.utils import secure_filename
 import subprocess
 import os
 import sys
 import glob
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+if os.path.join(BASE_DIR, 'src') not in sys.path:
+    sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
+from analise import analisar
 
 from test_orchestrator import (
     get_spec_summary,
@@ -20,18 +29,112 @@ from test_orchestrator import (
 )
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # Configuração de Diretórios
-TESTS_DIR = 'tests'
-OUTPUT_DIR = 'output'
-TEMP_DIR = 'temp_code'
+TESTS_DIR = os.path.join(BASE_DIR, 'tests')
+OUTPUT_DIR = os.path.join(BASE_DIR, 'output')
+TEMP_DIR = os.path.join(BASE_DIR, 'temp_code')
 
 os.makedirs(TEMP_DIR, exist_ok=True)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 @app.route('/')
-def index():
+@app.route('/didatico')
+def didatico():
+    """Segunda Interface Web do MiniPar 2026.2 (Educacional/Didática)."""
+    return render_template('didatico.html')
+
+@app.route('/ide')
+def ide():
+    """Primeira Interface Web do MiniPar (IDE do Desenvolvedor de 2026.1)."""
     return render_template('index.html')
+
+@app.route('/api/analisar', methods=['POST'])
+def api_analisar():
+    """Executa a análise modular por fases (Léxico, Sintático, Semântico, TAC, C++) em memória."""
+    try:
+        codigo, _, _ = _web_payload()
+        resultado = analisar(codigo)
+        return jsonify(resultado)
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({
+            "tokens": [],
+            "ast": None,
+            "simbolos": [],
+            "semantica": {"sucesso": None},
+            "tac": "",
+            "cpp": "",
+            "erros": [{"fase": "sistema", "linha": None, "coluna": None, "mensagem": str(e)}]
+        }), 500
+
+def _web_payload():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not isinstance(data.get('code'), str):
+        raise ValueError("Envie o codigo fonte no campo 'code'.")
+    filename = data.get('filename', 'programa_minipar.minipar')
+    if not isinstance(filename, str) or '/' in filename or chr(92) in filename:
+        raise ValueError("Nome de arquivo invalido.")
+    filename = secure_filename(filename) or 'programa_minipar.minipar'
+    if not filename.endswith('.minipar'):
+        filename += '.minipar'
+    inputs = data.get('inputs', [])
+    if not isinstance(inputs, list) or not all(isinstance(item, str) for item in inputs):
+        raise ValueError("As entradas devem ser uma lista de linhas de texto.")
+    return data['code'], filename, inputs
+
+
+@contextmanager
+def _compiled_program(code):
+    """Compilação isolada para evitar resultados antigos ou arquivos de outra requisição."""
+    jobs_dir = os.path.join(OUTPUT_DIR, 'web_jobs')
+    os.makedirs(jobs_dir, exist_ok=True)
+    with TemporaryDirectory(prefix='minipar_', dir=jobs_dir) as job:
+        source = os.path.join(job, 'programa.minipar')
+        with open(source, 'w', encoding='utf-8') as stream:
+            stream.write(code)
+        process = subprocess.run(
+            [sys.executable, os.path.join(BASE_DIR, 'main.py'), source],
+            cwd=job, capture_output=True, text=True, encoding='utf-8',
+            errors='replace', timeout=60,
+        )
+        generated = os.path.join(job, 'output', 'programa')
+        artifacts = {}
+        for extension in ('cpp', 'tac'):
+            path = generated + '.' + extension
+            artifacts[extension] = ''
+            if os.path.isfile(path):
+                with open(path, encoding='utf-8') as stream:
+                    artifacts[extension] = stream.read()
+        executable = generated + ('.exe' if sys.platform == 'win32' else '')
+        yield process, executable, artifacts, job
+
+
+@app.route('/api/download_exe', methods=['POST'])
+def download_exe():
+    """Compila em diretório exclusivo e envia somente o binário desta requisição."""
+    try:
+        code, filename, _ = _web_payload()
+        with _compiled_program(code) as (process, executable, _, job):
+            if process.returncode != 0:
+                return jsonify(success=False, error=process.stdout + process.stderr), 400
+            if not os.path.isfile(executable):
+                return jsonify(success=False, error="Executavel nao foi gerado."), 500
+            with open(executable, 'rb') as stream:
+                binary = BytesIO(stream.read())
+        extension = '.exe' if sys.platform == 'win32' else ''
+        return send_file(binary, as_attachment=True,
+                         download_name=os.path.splitext(filename)[0] + extension,
+                         mimetype='application/octet-stream')
+    except ValueError as error:
+        return jsonify(success=False, error=str(error)), 400
+    except subprocess.TimeoutExpired:
+        return jsonify(success=False, error="Tempo limite de compilacao excedido."), 504
+    except OSError as error:
+        return jsonify(success=False, error=str(error)), 500
+
 
 @app.route('/api/tests', methods=['GET'])
 def get_tests():
@@ -112,110 +215,50 @@ def session_clear():
 
 @app.route('/api/compile', methods=['POST'])
 def compile_code():
-    data = request.json
-    code = data.get('code')
-    filename = data.get('filename', 'ide_temp.minipar')
-    user_inputs = data.get('inputs', [])
-    
-    # Salva o código recebido da IDE em um arquivo temporário
-    file_path = os.path.join(TEMP_DIR, filename)
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(code)
-        
-    base_name = filename.replace('.minipar', '')
-    stdin_lines = user_inputs  # valores coletados pela IDE para input() no .minipar
-    
+    """Mantém a API da IDE antiga e executa o programa da interface didática."""
     try:
-        set_session_phase("compiling", "Compilando código MiniPar...", percent=60)
-        append_session_log("Compilação iniciada via IDE Web.")
-        # ==========================================
-        # 1. FASE DE COMPILAÇÃO (Gera TAC e C++)
-        # ==========================================
-        process = subprocess.run(
-            ['python', 'main.py', file_path], 
-            capture_output=True, 
-            text=True, 
-            timeout=15
-        )
-        
-        # Junta logs do sistema
-        full_output = process.stdout
-        if process.stderr:
-            full_output += "\n" + process.stderr
-            
-        success = process.returncode == 0
-
-        # ==========================================
-        # 2. FASE DE EXECUÇÃO (Roda o Binário C++)
-        # ==========================================
-        if success:
-            set_session_phase("compiling", "Compilação concluída.", percent=80)
-            append_session_log("Compilação concluída — executando binário.")
-            exe_ext = ".exe" if sys.platform == "win32" else ""
-            exe_path = os.path.join(OUTPUT_DIR, f"{base_name}{exe_ext}")
-            
-            if os.path.exists(exe_path):
-                full_output += f"\n--- Executando {base_name} ---\n"
-                set_session_phase("executing", f"Executando {base_name}...", percent=90)
+        code, filename, inputs = _web_payload()
+        set_session_phase("compiling", "Compilando codigo MiniPar...", percent=60)
+        append_session_log("Compilacao iniciada via IDE Web.")
+        with _compiled_program(code) as (process, executable, artifacts, job):
+            output = process.stdout + process.stderr
+            success = process.returncode == 0
+            returncode = None
+            execution_stdout = ''
+            if success and not os.path.isfile(executable):
+                success = False
+                output += "\nExecutavel nao foi gerado."
+            if success:
+                set_session_phase("executing", "Executando programa...", percent=90)
+                output += "\n--- Executando " + os.path.splitext(filename)[0] + " ---\n"
                 try:
-                    stdin_data = None
-                    if stdin_lines:
-                        stdin_data = "\n".join(stdin_lines) + "\n"
-                    exe_proc = subprocess.run(
-                        [os.path.abspath(exe_path)], 
-                        input=stdin_data,
-                        capture_output=True, 
-                        text=True, 
-                        timeout=30
+                    execution = subprocess.run(
+                        [executable], cwd=BASE_DIR, input='\n'.join(inputs) + ('\n' if inputs else ''),
+                        capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=60,
                     )
-                    full_output += exe_proc.stdout
-                    if exe_proc.stderr:
-                        full_output += "\n[ERRO NA EXECUÇÃO]:\n" + exe_proc.stderr
-                    record_execution_output(exe_proc.stdout or "")
+                    returncode = execution.returncode
+                    success = returncode == 0
+                    execution_stdout = execution.stdout
+                    output += execution.stdout + execution.stderr
+                    if not success:
+                        output += f"\nPrograma encerrou com codigo {returncode}."
+                    record_execution_output(execution.stdout)
                 except subprocess.TimeoutExpired:
-                    full_output += "\n[ERRO] Tempo limite de execução excedido (O programa entrou em loop infinito ou aguarda entrada de dados do usuário?)."
                     success = False
-                except Exception as e:
-                    full_output += f"\n[ERRO] Falha ao executar binário: {e}"
-                    success = False
-                
-                full_output += "\n" + "-" * 40
-
-                if filename.endswith('.minipar'):
-                    test_source = os.path.join(TESTS_DIR, filename)
-                    if os.path.exists(test_source):
-                        finalize_test_execution(test_source, full_output)
-        
-        # ==========================================
-        # 3. COLETA DOS ARQUIVOS GERADOS
-        # ==========================================
-        cpp_file = os.path.join(OUTPUT_DIR, f"{base_name}.cpp")
-        tac_file = os.path.join(OUTPUT_DIR, f"{base_name}.tac")
-        
-        cpp_code = ""
-        tac_code = ""
-        
-        if os.path.exists(cpp_file):
-            with open(cpp_file, 'r', encoding='utf-8') as f:
-                cpp_code = f.read()
-                
-        if os.path.exists(tac_file):
-             with open(tac_file, 'r', encoding='utf-8') as f:
-                tac_code = f.read()
-                
-        # Retorna o resultado. Se der erro, colocamos o log completo em stderr para o JS puxar
-        return jsonify({
-            "stdout": full_output if success else "",
-            "stderr": full_output if not success else "",
-            "cpp": cpp_code,
-            "tac": tac_code,
-            "success": success
-        })
-        
+                    output += "\nTempo limite de execucao excedido."
+                source = os.path.join(TESTS_DIR, filename)
+                if os.path.isfile(source):
+                    finalize_test_execution(source, output)
+            return jsonify(stdout=output if success else '', stderr=output if not success else '',
+                           cpp=artifacts['cpp'], tac=artifacts['tac'], success=success,
+                           returncode=returncode, execution_stdout=execution_stdout)
+    except ValueError as error:
+        return jsonify(success=False, error=str(error)), 400
     except subprocess.TimeoutExpired:
-        return jsonify({"error": "Tempo limite do compilador excedido.", "success": False}), 500
-    except Exception as e:
-        return jsonify({"error": str(e), "success": False}), 500
+        return jsonify(success=False, error="Tempo limite de compilacao excedido."), 504
+    except OSError as error:
+        return jsonify(success=False, error=str(error)), 500
+
 
 if __name__ == '__main__':
     # Roda a IDE silenciosamente
