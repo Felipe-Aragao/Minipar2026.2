@@ -1,4 +1,5 @@
 """Análise por fase para a interface Web didática."""
+from componente_codegen import C_Codegen, ICodegen
 from componente_lexico import C_Lexico, ILexico
 from componente_semantico import C_Semantico, ISemantico
 from componente_sintatico import C_Sintatico, ISintatico
@@ -15,7 +16,7 @@ def analisar(codigo: str) -> dict:
     Instâncias novas por chamada evitam mistura entre análises da Web.
     """
     resultado = {"tokens": [], "ast": None, "simbolos": [],
-                 "semantica": {"sucesso": None}, "tac": "", "erros": []}
+                 "semantica": {"sucesso": None}, "tac": "", "cpp": "", "erros": []}
     if not isinstance(codigo, str):
         raise TypeError("codigo deve ser uma string")
 
@@ -52,6 +53,14 @@ def analisar(codigo: str) -> dict:
         fase = "tac"
         gerador: ITAC = C_TAC()
         resultado["tac"] = gerador.gerar_texto(programa)
+
+        fase = "codegen"
+        try:
+            codegen: ICodegen = C_Codegen()
+            resultado["cpp"] = codegen.gerar_texto(programa)
+        except Exception as erro:
+            resultado["erros"].append({"fase": fase, "linha": None,
+                                        "coluna": None, "mensagem": str(erro) or "Falha na geracao C++."})
     except (LexError, ParseError) as erro:
         resultado["erros"].append({"fase": fase, "linha": erro.line,
                                     "coluna": erro.col, "mensagem": str(erro)})

@@ -102,8 +102,9 @@ def start_interactive():
             print(f"[ERRO] Falha ao carregar o menu: {e}")
             
     elif escolha == '2':
-        print("\nIniciando Web Interface IDE...")
-        print("Servidor inicializado! Acesse no navegador: http://127.0.0.1:5000\n")
+        print("\nIniciando Servidor Web MiniPar 2026.2...")
+        print("  -> Modo Didático (Educacional): http://127.0.0.1:5000/")
+        print("  -> Modo Desenvolvedor (IDE 2026.1): http://127.0.0.1:5000/ide\n")
         try:
             from app import app
             # Executa o Flask. Deixamos debug=False para o terminal ficar mais limpo
