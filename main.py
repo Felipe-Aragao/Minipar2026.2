@@ -10,7 +10,7 @@ from componente_sintatico import C_Sintatico, ISintatico
 from componente_tac import C_TAC, ITAC
 from lexer import LexError, TokenType
 from parser import ParseError
-from codegen import CppCodeGenerator
+from componente_codegen import C_Codegen, ICodegen
 
 def compile_file(source_path: str, output_name: str) -> bool:
     """Processa as 3 Fases do Compilador em um arquivo alvo."""
@@ -55,8 +55,8 @@ def compile_file(source_path: str, output_name: str) -> bool:
     print(f"[TAC] Arquivo gerado: {tac_path}")
 
     print("[Fase 4] Transpilacao e Chamada do GCC (-O3)...")
-    codegen = CppCodeGenerator()
-    return codegen.generate(program, output_name)
+    codegen: ICodegen = C_Codegen()
+    return codegen.gerar_codigo(program, output_name)
 
 
 def start_interactive():
