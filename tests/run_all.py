@@ -237,6 +237,20 @@ def run_test(name, args):
                 failed = True
                 details.append(f"trecho obrigatorio ausente: {needle!r}")
 
+    # 6) artefatos obrigatorios em disco
+    if name == "teste11_tokenizador":
+        checked = True
+        arm_path = os.path.join(OUTPUT_DIR, "teste11.arm")
+        if not os.path.isfile(arm_path):
+            failed = True
+            details.append("arquivo output/teste11.arm nao foi gerado")
+        else:
+            arm_text = read(arm_path)
+            for marker in (".global _start", "_start:", "b ."):
+                if marker not in arm_text:
+                    failed = True
+                    details.append(f"output/teste11.arm incompleto: marcador {marker!r} ausente")
+
     if failed:
         return "FALHOU", details
     return ("PASSOU" if checked else "SEM_VERIFICACAO"), details
