@@ -834,6 +834,7 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `to_string(v)` | `to_string(v)` → `string` | Traduzida para `__to_string`; aceita números, booleanos e strings |
 | `parse_ints(s)` | `parse_ints(string)` → `list` | Parseia inteiros de string separados por espaço |
 | `fmt(v, casas)` | `fmt(number, number)` → `string` | Formata casas decimais por `__fmt`; o semântico verifica dois argumentos |
+| `write_file(p, c)` / `save_file(p, c)` | `write_file(string, string)` → `number` | Grava o conteúdo textual no arquivo especificado em disco. Retorna 1 se sucesso, 0 se falha. |
 | `save_bmp(caminho, imagem)` | `save_bmp(string, matriz)` → `number` | Exporta matriz retangular como BMP de 24 bits; exige dois argumentos |
 | `launch_file(caminho)` | `launch_file(string)` → `number` | Solicita abertura pelo aplicativo padrão do sistema; exige um argumento |
 
@@ -1248,9 +1249,21 @@ A emissão de ARMv7 é textual. Os três arquivos em `tests/arm/` deixam 22, -84
 em `r8` para os exemplos do enunciado. A primeira e a terceira expressões são iguais.
 A avaliação em MiniPar e os valores das instruções foram conferidos localmente.
 A execução e a captura de evidências no CPUlator seguem como etapa de validação.
-O emissor trabalha com inteiros de 32 bits e usa um registrador por nó até `r12`.
-Divisão e decimais fracionários são aceitos na avaliação, com diagnóstico quando
-a emissão ARMv7 estiver indisponível.
+O programa agora reproduz a AST hierárquica do exemplo Java e grava a saída em
+`output/teste11.arm` por `write_file` (também disponível como `save_file`). Essas
+nativas recebem caminho e conteúdo textual, criam as pastas necessárias e devolvem
+um indicador numérico; a rotina não é uma gravação atômica.
+
+O emissor usa `MOV` para os operandos e um registrador de numeração crescente
+por nó, como no Java fornecido. Os três exemplos utilizam registradores até `r8`.
+Não há alocação geral de registradores nem validação completa de imediatos,
+variáveis ou literais fracionários para Assembly; outras entradas podem gerar
+texto não montável. Divisão é avaliada numericamente, mas não é emitida como
+instrução ARM. Divisão por zero devolve zero na avaliação desta aplicação.
+Esta versão não trata operadores unários nem diagnostica integralmente entradas
+malformadas: o tokenizador ignora caracteres desconhecidos e o parser pressupõe
+expressões válidas. Esses limites do programa de exemplo não alteram o lexer,
+parser e os diagnósticos do compilador MiniPar em si.
 
 O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 

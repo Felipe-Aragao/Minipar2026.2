@@ -1,8 +1,11 @@
-class TokenizadorExpressao {
+# Teste 11: MiniCompilador de Expressoes Infixadas em MiniPar 2026.2
+# Implementacao fiel ao MiniCompiladorCompleto_ARMv7.java da disciplina.
+# Gera Tokens, AST hierarquica, TAC, Assembly ARMv7 compativel com CPUlator,
+# Tabela de Simbolos e Avaliacao Numerica da expressao.
+
+class Tokenizador {
     var tipos = [""];
     var lexemas = [""];
-    var colunas = [];
-    var erro = "";
 
     func digito(c) {
         return c >= "0" && c <= "9";
@@ -12,347 +15,378 @@ class TokenizadorExpressao {
         return (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c == "_";
     }
 
-    func registrar(tipo, lexema, coluna) {
-        this.tipos.append(tipo);
-        this.lexemas.append(lexema);
-        this.colunas.append(coluna);
-    }
-
-    func analisar(texto) {
+    func analisar(entrada) {
         this.tipos = [""];
         this.tipos.pop();
         this.lexemas = [""];
         this.lexemas.pop();
-        this.colunas = [];
-        this.erro = "";
-        var i = 0;
-        var tamanho = len(texto);
 
-        while (i < tamanho) {
-            var c = texto[i];
-            var inicio = i;
-            if (c == " " || c == "\t") {
+        var i = 0;
+        var n = len(entrada);
+        while (i < n) {
+            var c = entrada[i];
+            if (c == " " || c == "\t" || c == "\r" || c == "\n") {
                 i = i + 1;
             } else if (c == "#") {
-                i = tamanho;
-            } else if (this.digito(c)) {
-                var numero = c;
-                i = i + 1;
-                while (i < tamanho && this.digito(texto[i])) {
-                    numero = numero + texto[i];
+                while (i < n && entrada[i] != "\n") {
                     i = i + 1;
                 }
-                if (i < tamanho && texto[i] == ".") {
-                    numero = numero + ".";
+            } else if (this.digito(c)) {
+                var num = c;
+                i = i + 1;
+                while (i < n && this.digito(entrada[i])) {
+                    num = num + entrada[i];
                     i = i + 1;
-                    if (i == tamanho || !this.digito(texto[i])) {
-                        this.erro = "Decimal incompleto na coluna " + to_string(i);
-                        return false;
-                    }
-                    while (i < tamanho && this.digito(texto[i])) {
-                        numero = numero + texto[i];
+                }
+                if (i < n && entrada[i] == ".") {
+                    num = num + ".";
+                    i = i + 1;
+                    while (i < n && this.digito(entrada[i])) {
+                        num = num + entrada[i];
                         i = i + 1;
                     }
                 }
-                this.registrar("NUMERO", numero, inicio + 1);
+                this.tipos.append("NUMERO");
+                this.lexemas.append(num);
             } else if (this.letra(c)) {
-                var nome = c;
+                var id = c;
                 i = i + 1;
-                while (i < tamanho && (this.letra(texto[i]) || this.digito(texto[i]))) {
-                    nome = nome + texto[i];
+                while (i < n && (this.letra(entrada[i]) || this.digito(entrada[i]))) {
+                    id = id + entrada[i];
                     i = i + 1;
                 }
-                this.registrar("IDENTIFICADOR", nome, inicio + 1);
+                this.tipos.append("IDENTIFICADOR");
+                this.lexemas.append(id);
             } else if (c == "+" || c == "-" || c == "*" || c == "/") {
-                this.registrar("OPERADOR", c, inicio + 1);
+                this.tipos.append("OPERADOR");
+                this.lexemas.append(c);
                 i = i + 1;
             } else if (c == "(" || c == ")") {
-                this.registrar("PARENTESE", c, inicio + 1);
+                this.tipos.append("PARENTESE");
+                this.lexemas.append(c);
                 i = i + 1;
             } else if (c == "=") {
-                this.registrar("ATRIBUICAO", c, inicio + 1);
+                this.tipos.append("ATRIBUICAO");
+                this.lexemas.append(c);
                 i = i + 1;
             } else {
-                this.erro = "Caractere invalido '" + c + "' na coluna " + to_string(inicio + 1);
-                return false;
+                i = i + 1;
             }
         }
-        this.registrar("FIM", "", tamanho + 1);
-        return true;
     }
 }
 
-class ParserExpressao {
+class MiniCompilador {
     var tipos = [""];
     var lexemas = [""];
-    var colunas = [];
     var pos = 0;
-    var erro = "";
     var raiz = -1;
 
-    var tipos_nos = [""];
-    var valores = [""];
-    var esquerda = [];
-    var direita = [];
-    var ast_texto = "";
+    var nos_valor = [""];
+    var nos_esq = [0];
+    var nos_dir = [0];
 
-    func adicionar_no(tipo, valor, esq, dir) {
-        var indice = len(this.valores);
-        this.tipos_nos.append(tipo);
-        this.valores.append(valor);
-        this.esquerda.append(esq);
-        this.direita.append(dir);
-        return indice;
-    }
+    var sim_nomes = [""];
+    var sim_tipos = [""];
 
-    func falhar(mensagem) {
-        this.erro = mensagem + " na coluna " + to_string(to_int(this.colunas[this.pos]));
-    }
+    var tempCount = 1;
+    var regCount = 0;
+    var assemblyARM = "";
 
-    # As rotinas recursivas guardam o indice do no produzido em raiz.
-    func expressao() {
-        this.termo();
-        while (this.erro == "" && (this.lexemas[this.pos] == "+" || this.lexemas[this.pos] == "-")) {
-            var operador = this.lexemas[this.pos];
-            var esq = this.raiz;
-            this.pos = this.pos + 1;
-            this.termo();
-            if (this.erro == "") {
-                this.raiz = this.adicionar_no("BINARIO", operador, esq, this.raiz);
-            }
-        }
-    }
-
-    func termo() {
-        this.fator();
-        while (this.erro == "" && (this.lexemas[this.pos] == "*" || this.lexemas[this.pos] == "/")) {
-            var operador = this.lexemas[this.pos];
-            var esq = this.raiz;
-            this.pos = this.pos + 1;
-            this.fator();
-            if (this.erro == "") {
-                this.raiz = this.adicionar_no("BINARIO", operador, esq, this.raiz);
-            }
-        }
-    }
-
-    func fator() {
-        var tipo = this.tipos[this.pos];
-        var lexema = this.lexemas[this.pos];
-        if (tipo == "NUMERO" || tipo == "IDENTIFICADOR") {
-            this.raiz = this.adicionar_no(tipo, lexema, -1, -1);
-            this.pos = this.pos + 1;
-        } else if (lexema == "+" || lexema == "-") {
-            this.pos = this.pos + 1;
-            this.fator();
-            if (this.erro == "") {
-                this.raiz = this.adicionar_no("UNARIO", lexema, this.raiz, -1);
-            }
-        } else if (lexema == "(") {
-            this.pos = this.pos + 1;
-            this.expressao();
-            if (this.erro == "") {
-                if (this.lexemas[this.pos] == ")") {
-                    this.pos = this.pos + 1;
-                } else {
-                    this.falhar("Esperado ')'");
-                }
-            }
-        } else {
-            this.falhar("Esperado operando");
-        }
-    }
-
-    func analisar(tokens) {
-        this.tipos = tokens.tipos;
-        this.lexemas = tokens.lexemas;
-        this.colunas = tokens.colunas;
+    func carregarTokens(t, l) {
+        this.tipos = t;
+        this.lexemas = l;
         this.pos = 0;
-        this.erro = "";
         this.raiz = -1;
-        this.tipos_nos = [""];
-        this.tipos_nos.pop();
-        this.valores = [""];
-        this.valores.pop();
-        this.esquerda = [];
-        this.direita = [];
-        this.ast_texto = "";
-        this.expressao();
-        if (this.erro == "" && this.tipos[this.pos] != "FIM") {
-            this.falhar("Token inesperado '" + this.lexemas[this.pos] + "'");
-        }
-        if (this.erro != "") {
-            this.raiz = -1;
-            return false;
+        this.nos_valor = [""];
+        this.nos_valor.pop();
+        this.nos_esq = [0];
+        this.nos_esq.pop();
+        this.nos_dir = [0];
+        this.nos_dir.pop();
+        this.sim_nomes = [""];
+        this.sim_nomes.pop();
+        this.sim_tipos = [""];
+        this.sim_tipos.pop();
+        this.tempCount = 1;
+        this.regCount = 0;
+        this.assemblyARM = "";
+    }
+
+    func isOperador(s) {
+        return s == "+" || s == "-" || s == "*" || s == "/";
+    }
+
+    func isDigito(c) {
+        return c >= "0" && c <= "9";
+    }
+
+    func isNumero(s) {
+        if (len(s) == 0) { return false; }
+        var i = 0;
+        var pontos = 0;
+        while (i < len(s)) {
+            var c = s[i];
+            if (c == ".") {
+                pontos = pontos + 1;
+                if (pontos > 1) { return false; }
+            } else if (!this.isDigito(c)) {
+                return false;
+            }
+            i = i + 1;
         }
         return true;
     }
 
-    func escrever_ast(indice) {
-        if (this.tipos_nos[indice] == "BINARIO" || this.tipos_nos[indice] == "UNARIO") {
-            this.ast_texto = this.ast_texto + "(" + this.valores[indice] + " ";
-            this.escrever_ast(this.esquerda[indice]);
-            if (this.direita[indice] >= 0) {
-                this.ast_texto = this.ast_texto + " ";
-                this.escrever_ast(this.direita[indice]);
-            }
-            this.ast_texto = this.ast_texto + ")";
-        } else {
-            this.ast_texto = this.ast_texto + this.valores[indice];
-        }
-    }
-}
-
-class GeradorExpressao {
-    var simbolos = [""];
-    var categorias = [""];
-    var operandos = [""];
-    var resultados = [];
-    var temporario = 1;
-    var arm = ".syntax unified\n.arm\n.global _start\n.text\n_start:\n";
-    var erro_arm = "";
-    var erro_avaliacao = "";
-
-    func simbolo(nome, categoria) {
-        var i = 1;
-        while (i < len(this.simbolos)) {
-            if (this.simbolos[i] == nome) { return; }
-            i = i + 1;
-        }
-        this.simbolos.append(nome);
-        this.categorias.append(categoria);
-        if (categoria == "VAR") {
-            print("Aviso: variavel sem valor, usando 0:", nome);
-        }
-    }
-
-    func gerar(arvore) {
-        this.operandos.pop();
-        print("TAC:");
+    func registrarSimbolo(token) {
+        if (this.isOperador(token)) { return; }
         var i = 0;
-        while (i < len(arvore.valores)) {
-            var tipo = arvore.tipos_nos[i];
-            var valor = arvore.valores[i];
-            var reg = "r" + to_string(i);
-            var numero = 0.0;
-            var instrucao = "";
-            if (tipo == "NUMERO" || tipo == "IDENTIFICADOR") {
-                this.operandos.append(valor);
-                if (tipo == "NUMERO") {
-                    this.simbolo(valor, "CONST");
-                    numero = to_number(valor);
-                    if (numero >= 0 && numero <= 2147483647 && numero == to_int(numero)) {
-                        var imediato = to_string(to_int(numero));
-                        if (numero <= 255) {
-                            instrucao = "    MOV " + reg + ", #" + imediato;
-                        } else {
-                            instrucao = "    LDR " + reg + ", =" + imediato;
-                        }
-                    } else {
-                        this.erro_arm = "Literal fora do dominio inteiro ARMv7.";
-                    }
-                } else {
-                    this.simbolo(valor, "VAR");
-                    this.erro_arm = "Variaveis sem valor nao podem ser emitidas em ARMv7.";
+        while (i < len(this.sim_nomes)) {
+            if (this.sim_nomes[i] == token) { return; }
+            i = i + 1;
+        }
+        this.sim_nomes.append(token);
+        if (this.isNumero(token)) {
+            this.sim_tipos.append("CONST");
+        } else {
+            this.sim_tipos.append("VAR");
+        }
+    }
+
+    func ordenarSimbolos() {
+        var i = 0;
+        while (i < len(this.sim_nomes)) {
+            var j = i + 1;
+            while (j < len(this.sim_nomes)) {
+                if (this.sim_nomes[j] < this.sim_nomes[i]) {
+                    var tmpN = this.sim_nomes[i];
+                    this.sim_nomes[i] = this.sim_nomes[j];
+                    this.sim_nomes[j] = tmpN;
+                    var tmpT = this.sim_tipos[i];
+                    this.sim_tipos[i] = this.sim_tipos[j];
+                    this.sim_tipos[j] = tmpT;
                 }
-            } else {
-                var esq = arvore.esquerda[i];
-                var a = this.resultados[esq];
-                var op_esq = this.operandos[esq];
-                var reg_esq = "r" + to_string(to_int(esq));
-                var temp = "t" + to_string(this.temporario);
-                this.temporario = this.temporario + 1;
-                if (tipo == "UNARIO") {
-                    print(temp, "=", valor, op_esq);
-                    numero = 0.0 + a;
-                    instrucao = "    MOV " + reg + ", " + reg_esq;
-                    if (valor == "-") {
-                        numero = 0 - a;
-                        instrucao = "    RSB " + reg + ", " + reg_esq + ", #0";
-                    }
-                } else {
-                    var dir = arvore.direita[i];
-                    var b = this.resultados[dir];
-                    var reg_dir = "r" + to_string(to_int(dir));
-                    print(temp, "=", op_esq, valor, this.operandos[dir]);
-                    var op_arm = "";
-                    if (valor == "+") {
-                        numero = a + b;
-                        op_arm = "ADD";
-                    } else if (valor == "-") {
-                        numero = a - b;
-                        op_arm = "SUB";
-                    } else if (valor == "*") {
-                        numero = a * b;
-                        op_arm = "MUL";
-                    } else {
-                        if (b == 0) {
-                            this.erro_avaliacao = "Divisao por zero.";
-                        } else {
-                            numero = a / b;
-                        }
-                        this.erro_arm = "Divisao nao suportada pelo emissor ARMv7.";
-                    }
-                    if (op_arm != "") {
-                        instrucao = "    " + op_arm + " " + reg + ", " + reg_esq + ", " + reg_dir;
-                    }
-                }
-                this.operandos.append(temp);
-            }
-            this.resultados.append(numero);
-            if (i >= 13) {
-                this.erro_arm = "Expressao excede os 13 registradores disponiveis.";
-            } else if (numero < -2147483648 || numero > 2147483647) {
-                this.erro_arm = "Resultado intermediario fora da faixa de 32 bits.";
-            }
-            if (instrucao != "") {
-                this.arm = this.arm + instrucao + "\n";
+                j = j + 1;
             }
             i = i + 1;
         }
     }
 
-    func exibir(raiz) {
-        print("Tabela de simbolos:");
-        var i = 1;
-        while (i < len(this.simbolos)) {
-            print(this.simbolos[i], this.categorias[i]);
-            i = i + 1;
-        }
-        if (this.erro_avaliacao == "") {
-            print("Resultado:", to_string(this.resultados[raiz]));
+    func criar_no(valor, esq, dir) {
+        var idx = len(this.nos_valor);
+        this.nos_valor.append(valor);
+        this.nos_esq.append(esq);
+        this.nos_dir.append(dir);
+        return idx;
+    }
+
+    func parseFactor() {
+        var token = this.lexemas[this.pos];
+        this.pos = this.pos + 1;
+        if (token == "(") {
+            this.parseExpr();
+            if (this.pos < len(this.lexemas) && this.lexemas[this.pos] == ")") {
+                this.pos = this.pos + 1;
+            }
         } else {
-            print("Erro de avaliacao:", this.erro_avaliacao);
+            this.registrarSimbolo(token);
+            this.raiz = this.criar_no(token, -1, -1);
         }
-        if (this.erro_arm == "") {
-            print("ARMv7:");
-            print(this.arm + "    B . @ resultado em r" + to_string(raiz));
+    }
+
+    func parseTerm() {
+        this.parseFactor();
+        while (this.pos < len(this.lexemas) && (this.lexemas[this.pos] == "*" || this.lexemas[this.pos] == "/")) {
+            var op = this.lexemas[this.pos];
+            this.pos = this.pos + 1;
+            var esq = this.raiz;
+            this.parseFactor();
+            var dir = this.raiz;
+            this.raiz = this.criar_no(op, esq, dir);
+        }
+    }
+
+    func parseExpr() {
+        this.parseTerm();
+        while (this.pos < len(this.lexemas) && (this.lexemas[this.pos] == "+" || this.lexemas[this.pos] == "-")) {
+            var op = this.lexemas[this.pos];
+            this.pos = this.pos + 1;
+            var esq = this.raiz;
+            this.parseTerm();
+            var dir = this.raiz;
+            this.raiz = this.criar_no(op, esq, dir);
+        }
+    }
+
+    func imprimirAST(idx, nivel) {
+        if (idx < 0) { return; }
+        var d = to_int(this.nos_dir[idx]);
+        var e = to_int(this.nos_esq[idx]);
+        this.imprimirAST(d, nivel + 1);
+        var espaco = "";
+        var k = 0;
+        while (k < nivel) {
+            espaco = espaco + "  ";
+            k = k + 1;
+        }
+        print(espaco + this.nos_valor[idx]);
+        this.imprimirAST(e, nivel + 1);
+    }
+
+    func gerarTAC(idx) {
+        if (idx < 0) { return ""; }
+        var val = this.nos_valor[idx];
+        if (!this.isOperador(val)) {
+            return val;
+        }
+        var e = to_int(this.nos_esq[idx]);
+        var d = to_int(this.nos_dir[idx]);
+        var a1 = this.gerarTAC(e);
+        var a2 = this.gerarTAC(d);
+        var temp = "t" + to_string(this.tempCount);
+        this.tempCount = this.tempCount + 1;
+        print(temp + " = " + a1 + " " + val + " " + a2);
+        return temp;
+    }
+
+    func formatExpr(idx) {
+        if (idx < 0) { return ""; }
+        var val = this.nos_valor[idx];
+        if (!this.isOperador(val)) {
+            return val;
+        }
+        var e = to_int(this.nos_esq[idx]);
+        var d = to_int(this.nos_dir[idx]);
+        return "(" + this.formatExpr(e) + " " + val + " " + this.formatExpr(d) + ")";
+    }
+
+    func gerarAssemblyARM(idx) {
+        if (idx < 0) { return ""; }
+        var val = this.nos_valor[idx];
+        if (!this.isOperador(val)) {
+            var reg = "r" + to_string(this.regCount);
+            this.regCount = this.regCount + 1;
+            var linha = "    MOV    " + reg + ", #" + val;
+            print(linha);
+            this.assemblyARM = this.assemblyARM + linha + "\n";
+            return reg;
+        }
+
+        var e = to_int(this.nos_esq[idx]);
+        var d = to_int(this.nos_dir[idx]);
+        var a1 = this.gerarAssemblyARM(e);
+        var a2 = this.gerarAssemblyARM(d);
+        var reg = "r" + to_string(this.regCount);
+        this.regCount = this.regCount + 1;
+
+        var instr = "NOP";
+        if (val == "+") { instr = "ADD"; }
+        if (val == "-") { instr = "SUB"; }
+        if (val == "*") { instr = "MUL"; }
+        if (val == "/") { instr = "DIV_UNSUPPORTED"; }
+
+        var exprFmt = this.formatExpr(idx);
+        var linha = "";
+        if (instr == "DIV_UNSUPPORTED") {
+            linha = "    @ divisão não suportada: " + a1 + " / " + a2 + "    @ resultado de '" + exprFmt + "'";
         } else {
-            print("ARMv7 indisponivel:", this.erro_arm);
+            var opPad = instr;
+            if (len(opPad) < 6) {
+                var diff = 6 - len(opPad);
+                var p = 0;
+                while (p < diff) {
+                    opPad = opPad + " ";
+                    p = p + 1;
+                }
+            }
+            linha = "    " + opPad + " " + reg + ", " + a1 + ", " + a2 + "    @ resultado de '" + exprFmt + "'";
         }
+        print(linha);
+        this.assemblyARM = this.assemblyARM + linha + "\n";
+        return reg;
+    }
+
+    func avaliarExpressao(idx) {
+        if (idx < 0) { return 0.0; }
+        var val = this.nos_valor[idx];
+        if (!this.isOperador(val)) {
+            if (this.isNumero(val)) {
+                return to_number(val);
+            }
+            print("Aviso: Variavel '" + val + "' nao tem valor atribuido. Usando 0.");
+            return 0.0;
+        }
+        var e = to_int(this.nos_esq[idx]);
+        var d = to_int(this.nos_dir[idx]);
+        var esq = this.avaliarExpressao(e);
+        var dir = this.avaliarExpressao(d);
+        if (val == "+") { return esq + dir; }
+        if (val == "-") { return esq - dir; }
+        if (val == "*") { return esq * dir; }
+        if (val == "/") {
+            if (dir != 0) { return esq / dir; }
+            return 0.0;
+        }
+        return 0.0;
     }
 }
 
 seq {
-    var texto = input();
-    var lexer = new TokenizadorExpressao();
-    if (lexer.analisar(texto)) {
-        var i = 0;
-        while (i < len(lexer.tipos)) {
-            print(lexer.colunas[i], lexer.tipos[i], lexer.lexemas[i]);
-            i = i + 1;
-        }
-        var parser = new ParserExpressao();
-        if (parser.analisar(lexer)) {
-            parser.escrever_ast(parser.raiz);
-            print("AST:", parser.ast_texto);
-            var gerador = new GeradorExpressao();
-            gerador.gerar(parser);
-            gerador.exibir(parser.raiz);
-        } else {
-            print("Erro sintatico:", parser.erro);
-        }
-    } else {
-        print("Erro lexico:", lexer.erro);
+    var entrada = input("Digite uma expressão infixada: ");
+    if (len(entrada) == 0) {
+        entrada = "((2+4)*7)-(5*4)";
     }
+
+    var lexer = new Tokenizador();
+    lexer.analisar(entrada);
+
+    print("");
+    print("Tokens gerados pelo analisador lexico:");
+    var k = 0;
+    while (k < len(lexer.tipos)) {
+        print("[" + lexer.tipos[k] + ": '" + lexer.lexemas[k] + "']");
+        k = k + 1;
+    }
+
+    var comp = new MiniCompilador();
+    comp.carregarTokens(lexer.tipos, lexer.lexemas);
+    comp.parseExpr();
+    var raiz = comp.raiz;
+
+    print("");
+    print("Arvore Sintatica Abstrata (AST):");
+    comp.imprimirAST(raiz, 0);
+
+    print("");
+    print("Codigo de Tres Enderecos (TAC):");
+    comp.gerarTAC(raiz);
+
+    print("");
+    print("Assembly ARMv7 (CPUlator):");
+    var cabecalho = ".global _start\n.text\n_start:\n";
+    print(".global _start");
+    print(".text");
+    print("_start:");
+    comp.assemblyARM = cabecalho;
+    comp.gerarAssemblyARM(raiz);
+    var rodape = "    b .    @ loop infinito para parar o programa\n";
+    print("    b .    @ loop infinito para parar o programa");
+    comp.assemblyARM = comp.assemblyARM + rodape;
+
+    print("");
+    print("Tabela de Simbolos:");
+    comp.ordenarSimbolos();
+    var s = 0;
+    while (s < len(comp.sim_nomes)) {
+        print(comp.sim_nomes[s] + " -> " + comp.sim_tipos[s]);
+        s = s + 1;
+    }
+
+    print("");
+    print("Resultado final da expressao:");
+    var res = comp.avaliarExpressao(raiz);
+    print("-> " + fmt(res, 1));
+
+    # Salva o arquivo .arm compativel com CPUlator
+    write_file("output/teste11.arm", comp.assemblyARM);
 }

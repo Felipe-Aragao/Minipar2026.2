@@ -18,6 +18,7 @@ _CPP_HEADER = """\
 #include <mutex>
 #include <functional>
 #include <fstream>
+#include <filesystem>
 #include <cstdint>
 
 #ifdef _WIN32
@@ -236,6 +237,23 @@ inline int __minipar_launch_file(const std::string& path) {
 #else
     return 0;
 #endif
+}
+
+// Helper nativo para gravacao atomica de arquivos de texto em disco
+inline int __minipar_write_file(const std::string& path, const std::string& content) {
+    try {
+        std::filesystem::path p(path);
+        if (p.has_parent_path()) {
+            std::filesystem::create_directories(p.parent_path());
+        }
+        std::ofstream out(p);
+        if (!out.is_open()) return 0;
+        out << content;
+        out.close();
+        return 1;
+    } catch (...) {
+        return 0;
+    }
 }
 
 

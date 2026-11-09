@@ -32,6 +32,8 @@ pytestmark = pytest.mark.skipif(shutil.which("g++") is None, reason="g++ necessa
          ["tarefa", "0"]),
         ('seq { var valores = [1, 2]; print("Lista:", valores); }',
          ["Lista: [1, 2]"]),
+        ('seq { var ok = write_file("output/teste_backend_write.txt", "ok"); print(ok); }',
+         ["1"]),
     ],
 )
 def test_executavel_preserva_sincronizacao_e_retornos(tmp_path, codigo, esperado):
