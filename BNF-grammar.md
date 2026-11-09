@@ -834,6 +834,46 @@ A tabela distingue funções reconhecidas pelo analisador semântico daquelas tr
 | `to_string(v)` | `to_string(v)` → `string` | Traduzida para `__to_string`; aceita números, booleanos e strings |
 | `parse_ints(s)` | `parse_ints(string)` → `list` | Parseia inteiros de string separados por espaço |
 | `fmt(v, casas)` | `fmt(number, number)` → `string` | Formata casas decimais por `__fmt`; o semântico verifica dois argumentos |
+| `save_bmp(caminho, imagem)` | `save_bmp(string, matriz)` → `number` | Exporta matriz retangular como BMP de 24 bits; exige dois argumentos |
+| `launch_file(caminho)` | `launch_file(string)` → `number` | Solicita abertura pelo aplicativo padrão do sistema; exige um argumento |
+
+### Exportação de imagem e abertura de arquivo
+
+`save_bmp` e `launch_file` são nomes de funções nativas, não palavras reservadas.
+Utilizam a produção normal de chamada de função, sem acrescentar um comando à
+gramática. O semântico reconhece os nomes, infere retorno numérico e verifica a
+quantidade de argumentos. Não realiza validação completa dos tipos dessas chamadas;
+os tipos efetivos também precisam ser compatíveis com o C++ gerado.
+
+`save_bmp(caminho, imagem)` recebe uma matriz retangular não vazia. A primeira
+dimensão corresponde às linhas e a segunda às colunas. Uma matriz numérica gera
+tons de cinza, limitados ao intervalo de 0 a 255 e convertidos para byte. Uma matriz
+de strings reconhece `navy`, `white`, `black`, `red`, `green`, `blue` e `yellow`;
+`"#"` representa branco e `" "` representa preto. Outras strings produzem branco.
+O runtime escreve pixels BGR, preenchimento de linha e cabeçalhos BMP de 24 bits.
+
+O retorno é `0` para matriz sem linhas/colunas ou falha na abertura do arquivo e
+`1` ao concluir a rotina de escrita. A implementação atual não verifica todos os
+erros posteriores de gravação nem se todas as linhas têm o mesmo comprimento;
+a matriz fornecida deve ser retangular. A pasta de destino deve existir.
+
+`launch_file(caminho)` utiliza `ShellExecuteA` no Windows e `xdg-open` no Linux.
+Retorna `1` quando a solicitação é aceita pelo mecanismo utilizado e `0` em falha
+detectada ou plataforma sem implementação. Esse retorno não comprova que a imagem
+foi efetivamente exibida, especialmente na abertura assíncrona do Linux. É necessário
+ter um aplicativo associado ao formato. No Teste 10, a gravação e a abertura ficam
+fora da medição do benchmark; o fractal é calculado em MiniPar.
+
+```minipar
+seq {
+    var imagem = matrix(3, 3, "navy");
+    imagem[1][1] = "white";
+    var salvo = save_bmp("output/exemplo.bmp", imagem);
+    if (salvo == 1) {
+        print("Imagem salva.");
+    }
+}
+```
 
 ### Métodos de Lista (acesso via ponto)
 
@@ -1221,13 +1261,26 @@ O terminal e `src/analise.py` encadeiam os mesmos contratos de front-end.
 | `ISemantico` | `C_Semantico` | AST → validação, símbolos e diagnósticos |
 | `ITabelaSimbolos` | `C_TabelaSimbolos` | Declarações e escopos → consultas e histórico de símbolos |
 | `ITAC` | `C_TAC` | AST validada → TAC em texto ou arquivo |
+| `ICodegen` | `C_Codegen` | AST → C++ em memória ou arquivo compilado via g++ |
+
+`ICodegen.gerar_texto(programa)` retorna o C++ em memória sem gravar arquivo nem
+invocar o compilador. `ICodegen.gerar_codigo(programa, nome_saida)` grava o `.cpp`,
+invoca g++ com C++20 e `-O3` e retorna um booleano que indica sucesso da compilação.
+O componente não executa o binário produzido. O terminal utiliza `C_Codegen`;
+a API `analisar` utiliza `C_Codegen.gerar_texto` após gerar o TAC e devolve o
+campo `cpp`, sem compilar ou executar durante a análise. Erros de geração entram
+na lista `erros` com fase `codegen`, preservando as fases concluídas.
 
 O analisador semântico utiliza `ITabelaSimbolos` para registrar declarações,
 consultar o nome visível mais próximo e controlar a entrada e saída de escopos.
 O componente rejeita duplicatas no mesmo escopo, permite nomes iguais em escopos
 aninhados e mantém o histórico das declarações para a interface. A localização
-da declaração visível também fundamenta a verificação de isolamento dos forks.
+da declaração visível também fundamenta a verificação de isolamento de `fork` e `par`.
 Cada análise cria sua própria tabela. Essa organização não altera a sintaxe.
+
+Os pseudocódigos dos itens 3 a 6 do relatório estão em
+[Pseudocódigos do front-end](docs/pseudocodigos_frontend.md), com correspondência
+aos componentes e limites da implementação.
 
 A API preserva os resultados das fases concluídas e registra linha e coluna nos
 erros léxicos, sintáticos e semânticos. Os nós da AST expõem `line` e `col`;

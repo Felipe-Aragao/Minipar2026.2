@@ -30,11 +30,86 @@ body {
 /* ── Sidebar ── */
 .sidebar {
     width: 250px;
-    min-width: 250px;          /* FIX: impede que a sidebar encolha */
+    min-width: 0;
     background-color: var(--bg-panel);
-    border-right: 1px solid var(--border);
+    border-right: none;
     display: flex;
     flex-direction: column;
+    flex-shrink: 0;
+}
+
+.app-container.sidebar-collapsed .sidebar {
+    width: 0 !important;
+    min-width: 0 !important;
+    display: none !important;
+}
+
+/* Divisória do Explorer / Sidebar (Redimensionamento Lateral) */
+.sidebar-resizer {
+    width: 6px;
+    background-color: var(--border);
+    cursor: col-resize;
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.sidebar-resizer:hover, .sidebar-resizer.is-dragging {
+    background-color: var(--accent) !important;
+}
+
+.sidebar-resizer .resizer-handle {
+    width: 2px;
+    height: 36px;
+    background: #484f58;
+    border-radius: 2px;
+    pointer-events: none;
+    transition: all 0.15s ease;
+}
+
+.sidebar-resizer:hover .resizer-handle,
+.sidebar-resizer.is-dragging .resizer-handle {
+    background: #ffffff;
+    height: 50px;
+}
+
+.sidebar-resizer .resizer-toggle-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 32px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 25;
+    transition: all 0.15s ease;
+}
+
+.sidebar-resizer:hover .resizer-toggle-btn,
+.sidebar-resizer .resizer-toggle-btn:focus {
+    display: flex;
+}
+
+.sidebar-resizer .resizer-toggle-btn:hover {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
+.app-container.sidebar-collapsed .sidebar-resizer .resizer-toggle-btn {
+    display: flex !important;
 }
 
 .sidebar-header { padding: 15px; border-bottom: 1px solid var(--border); }
@@ -173,14 +248,88 @@ body {
 .CodeMirror-scroll { height: 100%; }
 
 /* ── Terminal ── */
+/* Divisória do Terminal Output (Redimensionamento Vertical: Subida e Descida) */
+.terminal-resizer {
+    height: 6px;
+    background-color: var(--border);
+    cursor: row-resize;
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    user-select: none;
+    transition: background-color 0.15s ease;
+}
+
+.terminal-resizer:hover, .terminal-resizer.is-dragging {
+    background-color: var(--accent) !important;
+}
+
+.terminal-resizer .resizer-handle-h {
+    width: 36px;
+    height: 2px;
+    background: #484f58;
+    border-radius: 2px;
+    pointer-events: none;
+    transition: all 0.15s ease;
+}
+
+.terminal-resizer:hover .resizer-handle-h,
+.terminal-resizer.is-dragging .resizer-handle-h {
+    background: #ffffff;
+    width: 50px;
+}
+
+.terminal-resizer .resizer-toggle-btn-h {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 32px;
+    height: 18px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 25;
+    transition: all 0.15s ease;
+}
+
+.terminal-resizer:hover .resizer-toggle-btn-h,
+.terminal-resizer .resizer-toggle-btn-h:focus {
+    display: flex;
+}
+
+.terminal-resizer .resizer-toggle-btn-h:hover {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+}
+
+.main-content.terminal-collapsed .terminal {
+    height: 0 !important;
+    min-height: 0 !important;
+    display: none !important;
+}
+
+.main-content.terminal-collapsed .terminal-resizer .resizer-toggle-btn-h {
+    display: flex !important;
+}
+
 .terminal {
     height: 200px;
-    min-height: 200px;         /* FIX: terminal não some quando o editor expande */
+    min-height: 36px;
     background-color: #010409;
-    border-top: 1px solid var(--border);
+    border-top: none;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0;            /* FIX: terminal não encolhe */
+    flex-shrink: 0;
 }
 
 .terminal-header {
@@ -203,3 +352,18 @@ body {
 }
 
 .error-text { color: var(--danger) !important; }
+body.is-resizing-col {
+    cursor: col-resize !important;
+    user-select: none !important;
+}
+body.is-resizing-col * {
+    user-select: none !important;
+}
+
+body.is-resizing-row {
+    cursor: row-resize !important;
+    user-select: none !important;
+}
+body.is-resizing-row * {
+    user-select: none !important;
+}

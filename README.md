@@ -3,7 +3,14 @@ Trabalho de Compiladores - UFAL
 
 
 Arquitetura orientada a objetos baseada na versão C++ original, agora expandida para incluir **Geração de Código Intermediário (TAC)** de 3 endereços e uma nova **IDE Web**, capaz de gerar, compilar e executar o código C++ produzido pelo compilador.
-Desenvolvido por:
+Grupo MiniPar 2026.2:
+
+- Érico Almeida Bernardino
+- Felipe Lima Aragão
+- Lucas Trindade de Souza
+
+A versão 2026.2 reutiliza o projeto [MiniPar 2026.1](https://github.com/luizwhirl/minipar-improvement).
+Autores da base 2026.1:
 
 Emanuele Vitória de Jesus Lima - [Manu-Vii](https://github.com/Manu-Vii)
 
@@ -41,14 +48,14 @@ minipar_python/
 
 ## Requisitos
 
-- Python 3.8 ou superior
+- Python 3.10 ou superior (validação realizada com Python 3.12)
 - `g++` disponível no PATH (para compilar o código C++ gerado)
 - Flask (para executar a IDE Web)
 
 Instalação das dependências:
 
 ```bash
-pip install -r requirements.txt
+python -m pip install -r requirements.txt -r requirements-dev.txt
 ```
 
 ---
@@ -75,6 +82,19 @@ Após iniciar a interface web, acesse:
 ```text
 http://127.0.0.1:5000
 ```
+
+As duas interfaces ficam disponíveis no mesmo servidor:
+
+- `http://127.0.0.1:5000/` ou `/didatico`: ambiente didático com Tokens, AST, Semântica, TAC e C++.
+- `http://127.0.0.1:5000/ide`: IDE do desenvolvedor preservada.
+
+A entrada do ambiente didático usa **uma resposta por linha**. Espaços e vírgulas
+são preservados, inclusive em expressões do Teste 11. A análise gera C++ em memória;
+compilação, execução e download são ações separadas. As bibliotecas D3 e CodeMirror
+estão incluídas localmente e não exigem acesso a CDNs.
+
+[Guia da interface didática](docs/interface_didatica.md) ·
+[Pseudocódigos dos itens 3 a 6](docs/pseudocodigos_frontend.md)
 
 A IDE permite:
 
