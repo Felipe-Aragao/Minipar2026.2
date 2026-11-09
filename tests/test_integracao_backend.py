@@ -13,6 +13,12 @@ pytestmark = pytest.mark.skipif(shutil.which("g++") is None, reason="g++ necessa
 @pytest.mark.parametrize(
     ("codigo", "esperado"),
     [
+        ('func mudar(x) { x = 2; return 0; } seq { var x = 1; '
+         'par { seq { mudar(x); print(x); } } print(x); }',
+         ["2", "1"]),
+        ('func mudar(xs) { xs[0] = 2; return 0; } seq { var xs = [1]; '
+         'par { seq { mudar(xs); print(xs); } } print(xs); }',
+         ["[2]", "[1]"]),
         ('seq { fork { fork { print("filho"); } join; } join; print("fim"); }',
          ["filho", "fim"]),
         ('func trabalho() { var fim = time() + 0.02; while (time() < fim) {} print("concluido"); return 7; } '

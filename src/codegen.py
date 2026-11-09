@@ -272,7 +272,7 @@ class CppCodeGenerator:
         if isinstance(node, ParBlock):
             lines = [f"{indent}{{\n", f"{indent}    std::vector<std::thread> __m_thr;\n"]
             for stmt in node.statements:
-                lines.append(f"{indent}    __m_thr.emplace_back([&]() {{\n{self._translate_statement(stmt, indent + '        ')}{indent}    }});\n")
+                lines.append(f"{indent}    __m_thr.emplace_back([=]() mutable {{\n{self._translate_statement(stmt, indent + '        ')}{indent}    }});\n")
             lines.append(f"{indent}    for (auto& t : __m_thr) t.join();\n{indent}}}\n")
             return "".join(lines)
         if isinstance(node, WhileStmt):

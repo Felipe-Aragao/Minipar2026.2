@@ -26,7 +26,8 @@ class SemanticAnalyzer:
         self._loop_depth = 0
         
         # Controle de Isolamento de Memória para Paralelismo
-        self._fork_scope_start: Optional[int] = None
+        self._parallel_scope_start: Optional[int] = None
+        self._parallel_kind: Optional[str] = None
 
     @property
     def symbols(self) -> List[dict]:
@@ -120,11 +121,22 @@ class SemanticAnalyzer:
                 self._classes[stmt.name] = Symbol(stmt.name, "CLASS", attributes=attrs, methods=methods)
 
     def _check_memory_isolation(self, name: str, node: ASTNode) -> None:
-        if self._fork_scope_start is None:
+        if self._parallel_scope_start is None:
             return
         index = self.tabela_simbolos.localizar_escopo(name)
-        if index is not None and index < self._fork_scope_start:
-            self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um fork. Use mensagens (canais) para compartilhar dados.")
+        if index is not None and index < self._parallel_scope_start:
+            self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um {self._parallel_kind}. Use mensagens (canais) para compartilhar dados.")
+
+    def _validate_parallel_task(self, node: ASTNode, kind: str) -> None:
+        old_scope, old_kind = self._parallel_scope_start, self._parallel_kind
+        self._parallel_scope_start = self.tabela_simbolos.profundidade
+        self._parallel_kind = kind
+        self._enter_scope()
+        try:
+            self.validate_node(node)
+        finally:
+            self._exit_scope()
+            self._parallel_scope_start, self._parallel_kind = old_scope, old_kind
 
     def _constant_number(self, node: ASTNode) -> Optional[Fraction]:
         """Avalia apenas aritmética constante, sem executar código MiniPar."""
@@ -202,12 +214,7 @@ class SemanticAnalyzer:
                         if arg_type not in ("string", "unknown") or port_type not in ("number", "int", "unknown"):
                              self._report(node, f"Alocacao 'host' requer endereco IP ('string') e porta ('number').")
 
-            old_fork_scope = self._fork_scope_start
-            self._fork_scope_start = self.tabela_simbolos.profundidade
-            try:
-                self.validate_node(node.body)
-            finally:
-                self._fork_scope_start = old_fork_scope
+            self._validate_parallel_task(node.body, "fork")
 
         elif isinstance(node, JoinStmt):
             args = getattr(node, "args", [])
@@ -257,7 +264,10 @@ class SemanticAnalyzer:
                     self._report(node, f"Operador '{node.op}' exige operandos numericos.")
         elif isinstance(node, UnaryExpr):
             self.validate_node(node.operand)
-        elif isinstance(node, (SeqBlock, ParBlock)):
+        elif isinstance(node, ParBlock):
+            for stmt in node.statements:
+                self._validate_parallel_task(stmt, "par")
+        elif isinstance(node, SeqBlock):
             self._enter_scope()
             for stmt in node.statements: self.validate_node(stmt)
             self._exit_scope()
