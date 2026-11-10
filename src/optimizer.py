@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import copy
+import math
+from decimal import Decimal
 from typing import Any, List, Optional
 
 from ast_nodes import (
@@ -55,6 +57,7 @@ class ASTOptimizer:
 
     def optimize(self, program: Program) -> ResultadoOtimizacao:
         """Executa passadas de otimização até atingir ponto fixo ou limite máximo."""
+        self.transformacoes = []
         prog_copia = copy.deepcopy(program)
         total_antes = self.count_nodes(prog_copia)
 
@@ -76,17 +79,14 @@ class ASTOptimizer:
     # -------------------------------------------------------------------------
     # Travessia e Transformação
     # -------------------------------------------------------------------------
-    def _transform_statements(self, statements: List[ASTNode], can_inline_seq: bool = True) -> List[ASTNode]:
+    def _transform_statements(self, statements: List[ASTNode]) -> List[ASTNode]:
         novos: List[ASTNode] = []
         for stmt in statements:
-            is_if = isinstance(stmt, IfStmt)
             transf = self._transform_node(stmt)
             if transf is None:
                 continue
-            if isinstance(transf, SeqBlock) and (is_if or can_inline_seq):
-                novos.extend(transf.statements)
-            else:
-                novos.append(transf)
+            # O bloco preserva seu escopo e, em par, uma única tarefa.
+            novos.append(transf)
         return novos
 
     def _transform_node(self, node: Any) -> Any:
@@ -104,7 +104,7 @@ class ASTOptimizer:
 
         if isinstance(node, ParBlock):
             # No ParBlock, cada elemento define uma thread independente; não inlinamos SeqBlocks
-            node.statements = self._transform_statements(node.statements, can_inline_seq=False)
+            node.statements = self._transform_statements(node.statements)
             return node
 
         if isinstance(node, VarDecl):
@@ -136,7 +136,7 @@ class ASTOptimizer:
             return node
 
         if isinstance(node, FuncDecl):
-            node.body = self._transform_node(node.body)
+            node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             return node
 
         if isinstance(node, ClassDecl):
@@ -168,7 +168,7 @@ class ASTOptimizer:
 
         if isinstance(node, WhileStmt):
             node.condition = self._transform_node(node.condition)
-            node.body = self._transform_node(node.body)
+            node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             if isinstance(node.condition, BoolExpr) and not node.condition.value:
                 self.transformacoes.append(
                     f"Linha {node.line}: Eliminação de laço while (condição false inalcançável)"
@@ -177,7 +177,7 @@ class ASTOptimizer:
             return node
 
         if isinstance(node, DoWhileStmt):
-            node.body = self._transform_node(node.body)
+            node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             node.condition = self._transform_node(node.condition)
             return node
 
@@ -188,17 +188,17 @@ class ASTOptimizer:
                 node.condition = self._transform_node(node.condition)
             if node.increment:
                 node.increment = self._transform_node(node.increment)
-            node.body = self._transform_node(node.body)
+            node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             return node
 
         if isinstance(node, ForkStmt):
-            node.body = self._transform_node(node.body)
+            node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             return node
 
         # Eliminação de Ramos Mortos em IfStmt
         if isinstance(node, IfStmt):
             node.condition = self._transform_node(node.condition)
-            node.then_branch = self._transform_node(node.then_branch)
+            node.then_branch = self._transform_node(node.then_branch) or SeqBlock(statements=[])
             if node.else_branch:
                 node.else_branch = self._transform_node(node.else_branch)
 
@@ -207,12 +207,14 @@ class ASTOptimizer:
                     self.transformacoes.append(
                         f"Linha {node.line}: Eliminação de ramo morto em if (condição true, promovendo then_branch)"
                     )
-                    return node.then_branch
+                    return node.then_branch if isinstance(node.then_branch, SeqBlock) else SeqBlock(statements=[node.then_branch], line=node.line, col=node.col)
                 else:
                     self.transformacoes.append(
                         f"Linha {node.line}: Eliminação de ramo morto em if (condição false)"
                     )
-                    return node.else_branch  # se None, o if será descartado pelo parent
+                    if node.else_branch is None:
+                        return None
+                    return node.else_branch if isinstance(node.else_branch, SeqBlock) else SeqBlock(statements=[node.else_branch], line=node.line, col=node.col)
 
             return node
 
@@ -226,7 +228,11 @@ class ASTOptimizer:
                 try:
                     num_val = float(operand.value) if "." in operand.value else int(operand.value)
                     res = -num_val if op == "-" else num_val
-                    res_str = str(res)
+                    if isinstance(res, int) and not (-(2**31) < num_val <= 2**31 - 1 and -(2**31) < res <= 2**31 - 1):
+                        return node
+                    if isinstance(res, float) and not math.isfinite(res):
+                        return node
+                    res_str = self._number_text(res)
                     self.transformacoes.append(
                         f"Linha {node.line}: Dobra de constantes unária '{op}{operand.value}' -> '{res_str}'"
                     )
@@ -243,7 +249,7 @@ class ASTOptimizer:
 
             return node
 
-        # BinaryExpr (Constant Folding & Identidades Algébricas)
+        # BinaryExpr: dobra apenas expressões literais comprovadamente válidas.
         if isinstance(node, BinaryExpr):
             node.left = self._transform_node(node.left)
             node.right = self._transform_node(node.right)
@@ -256,11 +262,6 @@ class ASTOptimizer:
             if folded is not None:
                 return folded
 
-            # 2.B: Identidades Algébricas e Redução de Força
-            simplified = self._simplify_algebraic(op, left, right, node.line, node.col)
-            if simplified is not None:
-                return simplified
-
             return node
 
         return node
@@ -272,9 +273,12 @@ class ASTOptimizer:
         # Ambos NumberExpr
         if isinstance(left, NumberExpr) and isinstance(right, NumberExpr):
             try:
-                is_float = ("." in left.value) or ("." in right.value) or (op == "/")
+                is_float = ("." in left.value) or ("." in right.value)
                 v_left = float(left.value) if is_float else int(left.value)
                 v_right = float(right.value) if is_float else int(right.value)
+                # Sem tipos inteiros explícitos, restringe a dobra ao int de 32 bits.
+                if not is_float and not all(-(2**31) < v <= 2**31 - 1 for v in (v_left, v_right)):
+                    return None
 
                 # Operações Aritméticas
                 if op == "+":
@@ -286,11 +290,13 @@ class ASTOptimizer:
                 elif op == "/":
                     if v_right == 0:
                         return None  # Preserva erro de divisão por zero em runtime
-                    res = v_left / v_right
+                    res = v_left / v_right if is_float else self._int_quotient(v_left, v_right)
                 elif op == "%":
                     if v_right == 0:
                         return None
-                    res = v_left % v_right
+                    if is_float:
+                        return None  # O backend C++ não aceita % entre doubles.
+                    res = v_left - self._int_quotient(v_left, v_right) * v_right
                 # Operações Relacionais
                 elif op == "<":
                     return self._record_fold(f"{left.value} < {right.value}", v_left < v_right, line, col, is_bool=True)
@@ -308,10 +314,14 @@ class ASTOptimizer:
                     return None
 
                 # Formata número resultante
-                if isinstance(res, float) and res.is_integer() and not ("." in left.value or "." in right.value):
-                    res_str = str(int(res))
+                if isinstance(res, float):
+                    if not math.isfinite(res):
+                        return None
+                    res_str = self._number_text(res)
                 else:
-                    res_str = f"{res:.6f}".rstrip("0").rstrip(".") if isinstance(res, float) else str(res)
+                    if not -(2**31) < res <= 2**31 - 1:
+                        return None
+                    res_str = str(res)
 
                 return self._record_fold(f"{left.value} {op} {right.value}", res_str, line, col, is_bool=False)
             except Exception:
@@ -349,94 +359,14 @@ class ASTOptimizer:
             return BoolExpr(value=bool(res), line=line, col=col)
         return NumberExpr(value=str(res), line=line, col=col)
 
-    # -------------------------------------------------------------------------
-    # Regras de Simplificação Algébrica
-    # -------------------------------------------------------------------------
-    def _is_number_zero(self, node: Any) -> bool:
-        if isinstance(node, NumberExpr):
-            try:
-                return float(node.value) == 0.0
-            except ValueError:
-                return False
-        return False
+    @staticmethod
+    def _number_text(value: Any) -> str:
+        if isinstance(value, float):
+            text = format(Decimal(repr(value)), 'f')
+            return text if '.' in text else text + '.0'
+        return str(value)
 
-    def _is_number_one(self, node: Any) -> bool:
-        if isinstance(node, NumberExpr):
-            try:
-                return float(node.value) == 1.0
-            except ValueError:
-                return False
-        return False
-
-    def _simplify_algebraic(self, op: str, left: Any, right: Any, line: int, col: Optional[int]) -> Optional[ASTNode]:
-        # Adição com zero: x + 0 -> x, 0 + x -> x
-        if op == "+":
-            if self._is_number_zero(right):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica 'x + 0' -> x")
-                return left
-            if self._is_number_zero(left):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica '0 + x' -> x")
-                return right
-
-        # Subtração com zero: x - 0 -> x
-        if op == "-":
-            if self._is_number_zero(right):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica 'x - 0' -> x")
-                return left
-
-        # Multiplicação com um: x * 1 -> x, 1 * x -> x
-        if op == "*":
-            if self._is_number_one(right):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica 'x * 1' -> x")
-                return left
-            if self._is_number_one(left):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica '1 * x' -> x")
-                return right
-            # Multiplicação com zero: x * 0 -> 0 (se x for puro)
-            if self._is_number_zero(right) and self.is_pure(left):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica 'x * 0' -> 0")
-                return NumberExpr(value="0", line=line, col=col)
-            if self._is_number_zero(left) and self.is_pure(right):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica '0 * x' -> 0")
-                return NumberExpr(value="0", line=line, col=col)
-
-        # Divisão por um: x / 1 -> x
-        if op == "/":
-            if self._is_number_one(right):
-                self.transformacoes.append(f"Linha {line}: Simplificação algébrica 'x / 1' -> x")
-                return left
-
-        # Lógica booleana com curto-circuito
-        if op in ("&&", "and"):
-            if isinstance(right, BoolExpr):
-                if not right.value and self.is_pure(left):
-                    self.transformacoes.append(f"Linha {line}: Curto-circuito lógico 'x && false' -> false")
-                    return BoolExpr(value=False, line=line, col=col)
-                if right.value:
-                    self.transformacoes.append(f"Linha {line}: Identidade lógica 'x && true' -> x")
-                    return left
-            if isinstance(left, BoolExpr):
-                if not left.value and self.is_pure(right):
-                    self.transformacoes.append(f"Linha {line}: Curto-circuito lógico 'false && x' -> false")
-                    return BoolExpr(value=False, line=line, col=col)
-                if left.value:
-                    self.transformacoes.append(f"Linha {line}: Identidade lógica 'true && x' -> x")
-                    return right
-
-        if op in ("||", "or"):
-            if isinstance(right, BoolExpr):
-                if right.value and self.is_pure(left):
-                    self.transformacoes.append(f"Linha {line}: Curto-circuito lógico 'x || true' -> true")
-                    return BoolExpr(value=True, line=line, col=col)
-                if not right.value:
-                    self.transformacoes.append(f"Linha {line}: Identidade lógica 'x || false' -> x")
-                    return left
-            if isinstance(left, BoolExpr):
-                if left.value and self.is_pure(right):
-                    self.transformacoes.append(f"Linha {line}: Curto-circuito lógico 'true || x' -> true")
-                    return BoolExpr(value=True, line=line, col=col)
-                if not left.value:
-                    self.transformacoes.append(f"Linha {line}: Identidade lógica 'false || x' -> x")
-                    return right
-
-        return None
+    @staticmethod
+    def _int_quotient(left: int, right: int) -> int:
+        magnitude = abs(left) // abs(right)
+        return -magnitude if (left < 0) != (right < 0) else magnitude

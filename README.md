@@ -111,8 +111,9 @@ A IDE permite:
 O compilador inclui uma etapa opcional de **Otimização Independente de Máquina** baseada em transformações AST-to-AST e modelada segundo os princípios de Engenharia de Software Baseada em Componentes (CBSE - `IOtimizador` e `C_Otimizador`):
 
 - **Dobra de Constantes (*Constant Folding*):** Avaliação estática em tempo de compilação de expressões numéricas, booleanas e strings literais (ex: `2 + 3 * 4` → `14`, `!false` → `true`).
-- **Simplificação Algébrica e Redução de Força:** Eliminação de elementos neutros e absorventes (ex: `x + 0` → `x`, `x * 1` → `x`, `x * 0` → `0`, curto-circuitos lógicos).
+- **Preservação de comportamento:** a dobra respeita divisão e resto inteiros do C++ e mantém a precisão dos literais fracionários. Identidades com variáveis são preservadas até que a AST forneça os tipos necessários para provar sua segurança.
 - **Eliminação de Ramos Mortos (*Dead Branch Elimination*):** Remoção de estruturas condicionais inalcançáveis (`if (true)`, `if (false)` e `while (false)`).
+- **Escopos e tarefas:** blocos `seq` são mantidos; a eliminação de um `if` dentro de `par` preserva seus comandos em uma única tarefa.
 - **Controle Opcional:** Habilitado com alternância via checkbox `⚡ Otimizar` na Interface Web Didática ou via parâmetro `otimizar=True` em `analise.analisar()`, fornecendo métricas de redução de nós da AST e relatório de transformações aplicadas.
 
 ### 2. Execução Direta (CLI)

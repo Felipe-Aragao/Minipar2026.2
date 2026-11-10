@@ -25,7 +25,7 @@ class OptimizerTests(unittest.TestCase):
         res = self.otimizador.otimizar(ast)
 
         # 2 + 12 -> 14, 10 / 2 -> 5, 7 % 4 -> 3
-        decls = res.programa_otimizado.statements
+        decls = res.programa_otimizado.statements[0].statements
         self.assertEqual(decls[0].init_value.value, "14")
         self.assertEqual(decls[1].init_value.value, "5")
         self.assertEqual(decls[2].init_value.value, "3")
@@ -35,14 +35,14 @@ class OptimizerTests(unittest.TestCase):
     def test_constant_folding_unary(self):
         ast = self._parse("seq { var a = -(-42); var b = !false; }")
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements
+        decls = res.programa_otimizado.statements[0].statements
         self.assertEqual(decls[0].init_value.value, "42")
         self.assertTrue(decls[1].init_value.value)
 
     def test_constant_folding_relational_and_logical(self):
         ast = self._parse("seq { var c1 = 10 > 5; var c2 = 3 == 4; var c3 = true && false; var c4 = false || true; }")
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements
+        decls = res.programa_otimizado.statements[0].statements
         self.assertTrue(decls[0].init_value.value)
         self.assertFalse(decls[1].init_value.value)
         self.assertFalse(decls[2].init_value.value)
@@ -51,35 +51,31 @@ class OptimizerTests(unittest.TestCase):
     def test_constant_folding_strings(self):
         ast = self._parse('seq { var msg = "Mini" + "Par"; var eq = "a" == "a"; }')
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements
+        decls = res.programa_otimizado.statements[0].statements
         self.assertEqual(decls[0].init_value.value, "MiniPar")
         self.assertTrue(decls[1].init_value.value)
 
     def test_algebraic_simplifications_neutral_elements(self):
         ast = self._parse("seq { var x = 10; var a = x + 0; var b = 0 + x; var c = x - 0; var d = x * 1; var e = 1 * x; var f = x / 1; }")
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements[1:]
+        decls = res.programa_otimizado.statements[0].statements[1:]
         for decl in decls:
-            # Todos devem ter sido reduzidos diretamente para o identificador 'x'
-            self.assertEqual(decl.init_value.__class__.__name__, "IdentifierExpr")
-            self.assertEqual(decl.init_value.name, "x")
-        self.assertTrue(any("Simplificação algébrica" in t for t in res.transformacoes))
+            # A AST não fornece tipos para provar que a promoção é preservada.
+            self.assertEqual(decl.init_value.__class__.__name__, "BinaryExpr")
+        self.assertFalse(res.transformacoes)
 
     def test_algebraic_simplifications_absorbent_elements(self):
         ast = self._parse("seq { var x = 10; var z1 = x * 0; var z2 = 0 * x; }")
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements[1:]
-        self.assertEqual(decls[0].init_value.value, "0")
-        self.assertEqual(decls[1].init_value.value, "0")
+        decls = res.programa_otimizado.statements[0].statements[1:]
+        self.assertEqual(decls[0].init_value.__class__.__name__, "BinaryExpr")
+        self.assertEqual(decls[1].init_value.__class__.__name__, "BinaryExpr")
 
     def test_algebraic_simplifications_boolean(self):
         ast = self._parse("seq { var cond = true; var r1 = cond && false; var r2 = cond || true; var r3 = cond && true; var r4 = cond || false; }")
         res = self.otimizador.otimizar(ast)
-        decls = res.programa_otimizado.statements[1:]
-        self.assertFalse(decls[0].init_value.value)
-        self.assertTrue(decls[1].init_value.value)
-        self.assertEqual(decls[2].init_value.name, "cond")
-        self.assertEqual(decls[3].init_value.name, "cond")
+        decls = res.programa_otimizado.statements[0].statements[1:]
+        self.assertTrue(all(decl.init_value.__class__.__name__ == "BinaryExpr" for decl in decls))
 
     def test_dead_branch_elimination_if_true(self):
         code = """
@@ -93,10 +89,10 @@ class OptimizerTests(unittest.TestCase):
         """
         ast = self._parse(code)
         res = self.otimizador.otimizar(ast)
-        stmts = res.programa_otimizado.statements
+        stmts = res.programa_otimizado.statements[0].statements
         self.assertEqual(len(stmts), 1)
-        self.assertEqual(stmts[0].__class__.__name__, "PrintStmt")
-        self.assertEqual(stmts[0].arguments[0].value, "Vivo")
+        self.assertEqual(stmts[0].__class__.__name__, "SeqBlock")
+        self.assertEqual(stmts[0].statements[0].arguments[0].value, "Vivo")
         self.assertTrue(any("Eliminação de ramo morto em if" in t for t in res.transformacoes))
 
     def test_dead_branch_elimination_if_false_with_else(self):
@@ -111,10 +107,10 @@ class OptimizerTests(unittest.TestCase):
         """
         ast = self._parse(code)
         res = self.otimizador.otimizar(ast)
-        stmts = res.programa_otimizado.statements
+        stmts = res.programa_otimizado.statements[0].statements
         self.assertEqual(len(stmts), 1)
-        self.assertEqual(stmts[0].__class__.__name__, "PrintStmt")
-        self.assertEqual(stmts[0].arguments[0].value, "Vivo")
+        self.assertEqual(stmts[0].__class__.__name__, "SeqBlock")
+        self.assertEqual(stmts[0].statements[0].arguments[0].value, "Vivo")
 
     def test_dead_branch_elimination_if_false_without_else(self):
         code = """
@@ -128,7 +124,7 @@ class OptimizerTests(unittest.TestCase):
         """
         ast = self._parse(code)
         res = self.otimizador.otimizar(ast)
-        stmts = res.programa_otimizado.statements
+        stmts = res.programa_otimizado.statements[0].statements
         self.assertEqual(len(stmts), 2)
         self.assertEqual(stmts[0].name, "x")
         self.assertEqual(stmts[1].name, "y")
@@ -145,7 +141,7 @@ class OptimizerTests(unittest.TestCase):
         """
         ast = self._parse(code)
         res = self.otimizador.otimizar(ast)
-        stmts = res.programa_otimizado.statements
+        stmts = res.programa_otimizado.statements[0].statements
         self.assertEqual(len(stmts), 2)
         self.assertEqual(stmts[0].name, "a")
         self.assertEqual(stmts[1].__class__.__name__, "PrintStmt")
