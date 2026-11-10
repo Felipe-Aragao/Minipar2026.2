@@ -396,43 +396,64 @@ public:
     MiniParChannel(std::string ip, int port) : ip(ip), port(port) {}
 
     void sendData(std::string msg) {
-        int sock = socket(AF_INET, SOCK_STREAM, 0);
-        if (sock < 0) return;
         struct sockaddr_in serv_addr;
+        memset(&serv_addr, 0, sizeof(serv_addr));
         serv_addr.sin_family = AF_INET;
         serv_addr.sin_port = htons(port);
         inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr);
         
-        for(int i=0; i<50; i++) {
-            if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) >= 0) {
-                send(sock, msg.c_str(), msg.length(), 0);
-                break;
+        for (int i = 0; i < 50; i++) {
+            int sock = socket(AF_INET, SOCK_STREAM, 0);
+            if (sock >= 0) {
+                if (connect(sock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) >= 0) {
+                    send(sock, msg.c_str(), msg.length(), 0);
+                    #ifdef _WIN32
+                    shutdown(sock, SD_SEND);
+                    #else
+                    shutdown(sock, SHUT_WR);
+                    #endif
+                    char ack[16];
+                    recv(sock, ack, sizeof(ack), 0);
+                    CLOSE_SOCK(sock);
+                    return;
+                }
+                CLOSE_SOCK(sock);
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
-        CLOSE_SOCK(sock);
     }
 
     std::string receiveData() {
-        int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (server_fd < 0) return "";
+        int server_fd = -1;
         int opt = 1;
-        setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
-        
         struct sockaddr_in address;
+        memset(&address, 0, sizeof(address));
         address.sin_family = AF_INET;
         address.sin_addr.s_addr = INADDR_ANY;
         address.sin_port = htons(port);
-        
-        if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) { CLOSE_SOCK(server_fd); return ""; }
+
+        for (int i = 0; i < 30; i++) {
+            server_fd = socket(AF_INET, SOCK_STREAM, 0);
+            if (server_fd >= 0) {
+                setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, (const char*)&opt, sizeof(opt));
+                if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) >= 0) {
+                    break;
+                }
+                CLOSE_SOCK(server_fd);
+                server_fd = -1;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+        if (server_fd < 0) return "";
         if (listen(server_fd, 3) < 0) { CLOSE_SOCK(server_fd); return ""; }
         
         int new_socket = accept(server_fd, nullptr, nullptr);
         if (new_socket < 0) { CLOSE_SOCK(server_fd); return ""; }
         
         char buffer[4096] = {0};
-        recv(new_socket, buffer, 4096, 0);
-        std::string result(buffer);
+        int bytes = recv(new_socket, buffer, 4096, 0);
+        std::string result(buffer, bytes > 0 ? bytes : 0);
+        send(new_socket, "OK", 2, 0);
         
         CLOSE_SOCK(new_socket);
         CLOSE_SOCK(server_fd);

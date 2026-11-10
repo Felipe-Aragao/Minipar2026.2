@@ -1,6 +1,6 @@
 """
-Análise estática de programas MiniPar — detecta requisitos de entrada
-e execução multi-terminal diretamente do código-fonte.
+Analise estatica de programas MiniPar - detecta requisitos de entrada
+e execucao multi-terminal diretamente do codigo-fonte.
 """
 from __future__ import annotations
 
@@ -23,14 +23,14 @@ def _extract_title(source: str, filename: str) -> str:
 
 
 def _find_inputs(source: str) -> list[dict[str, str]]:
-    """Detecta chamadas input() no código MiniPar."""
+    """Detecta chamadas input() no codigo MiniPar."""
     inputs: list[dict[str, str]] = []
 
-    # input("prompt") — cada prompt vira uma entrada identificada
+    # input("prompt") - cada prompt vira uma entrada identificada
     for match in re.finditer(r'input\s*\(\s*"((?:\\.|[^"\\])*)"\s*\)', source):
         prompt = match.group(1).replace("\\n", "\n").replace('\\"', '"')
         if prompt == "":
-            continue  # input("") é tratado abaixo (geralmente dentro de loop)
+            continue  # input("") e tratado abaixo (geralmente dentro de loop)
         desc = prompt.strip() if prompt.strip() else "Entrada do teclado"
         inputs.append({"prompt": prompt, "descricao": desc})
 
@@ -53,7 +53,7 @@ def _count_channels(source: str) -> int:
 
 
 def analyze_program(source_path: str) -> dict[str, Any]:
-    """Analisa um arquivo .minipar e retorna requisitos de execução."""
+    """Analisa um arquivo .minipar e retorna requisitos de execucao."""
     filename = os.path.basename(source_path)
     source = _read_source(source_path)
     titulo = _extract_title(source, filename)
@@ -65,16 +65,22 @@ def analyze_program(source_path: str) -> dict[str, Any]:
     channel_count = _count_channels(source)
 
     multi_computer: Optional[dict[str, Any]] = None
-    # c_channel + send/receive indica comunicação entre terminais distintos
-    if channel_count > 0 and (has_send or has_receive):
-        count = max(channel_count, 2)  # mínimo cliente + servidor
+    # Programas que usam par { ... } e possuem send e receive executam
+    # cliente e servidor no mesmo processo via threads locais, sem necessidade
+    # de múltiplos terminais ou computadores externos.
+    is_local_concurrent = has_par and has_send and has_receive
+
+    # c_channel + send/receive indica comunicacao entre terminais distintos
+    # apenas quando o programa nao executa ambos os lados localmente em par
+    if channel_count > 0 and (has_send or has_receive) and not is_local_concurrent:
+        count = max(channel_count, 2)  # minimo cliente + servidor
         roles = [f"computador_{i + 1}" for i in range(count)]
         multi_computer = {
             "required": True,
             "count": count,
             "roles": roles,
             "instrucoes": (
-                f"Este programa usa {channel_count} canal(is) de comunicação (c_channel). "
+                f"Este programa usa {channel_count} canal(is) de comunicacao (c_channel). "
                 f"Abra {count - 1} terminal(is) adicional(is), execute python main.py "
                 f"e escolha 'Continuar teste em andamento'."
             ),

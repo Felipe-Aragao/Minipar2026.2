@@ -138,14 +138,24 @@ def download_exe():
 
 @app.route('/api/tests', methods=['GET'])
 def get_tests():
-    # Retorna os testes ordenados alfabeticamente
+    # Retorna os 11 testes oficiais da pasta tests/oficiais em ordem numerica (1 a 11)
+    oficiais_dir = os.path.join(TESTS_DIR, 'oficiais')
+    import re
+    def num_key(f):
+        m = re.search(r'\d+', f)
+        return int(m.group(0)) if m else 999
+    if os.path.isdir(oficiais_dir):
+        tests = [os.path.basename(f) for f in glob.glob(os.path.join(oficiais_dir, '*.minipar'))]
+        return jsonify({"tests": sorted(tests, key=num_key)})
     tests = [os.path.basename(f) for f in glob.glob(os.path.join(TESTS_DIR, '*.minipar'))]
-    return jsonify({"tests": sorted(tests)})
+    return jsonify({"tests": sorted(tests, key=num_key)})
 
 @app.route('/api/get_test', methods=['POST'])
 def get_test():
     filename = request.json.get('filename')
-    filepath = os.path.join(TESTS_DIR, filename)
+    filepath = os.path.join(TESTS_DIR, 'oficiais', filename)
+    if not os.path.exists(filepath):
+        filepath = os.path.join(TESTS_DIR, filename)
     if os.path.exists(filepath):
         with open(filepath, 'r', encoding='utf-8') as f:
             return jsonify({"code": f.read()})
@@ -186,7 +196,9 @@ def session_join():
 @app.route('/api/session/create', methods=['POST'])
 def session_create():
     filename = request.json.get('filename')
-    path = os.path.join(TESTS_DIR, filename)
+    path = os.path.join(TESTS_DIR, 'oficiais', filename)
+    if not os.path.exists(path):
+        path = os.path.join(TESTS_DIR, filename)
     if not os.path.exists(path):
         return jsonify({"success": False, "error": "Arquivo não encontrado"}), 404
     from program_analyzer import get_program_spec
