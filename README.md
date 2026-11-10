@@ -114,6 +114,7 @@ O compilador inclui uma etapa opcional de **Otimização Independente de Máquin
 - **Preservação de comportamento:** a dobra respeita divisão e resto inteiros do C++ e mantém a precisão dos literais fracionários. Identidades com variáveis são preservadas até que a AST forneça os tipos necessários para provar sua segurança.
 - **Eliminação de Ramos Mortos (*Dead Branch Elimination*):** Remoção de estruturas condicionais inalcançáveis (`if (true)`, `if (false)` e `while (false)`).
 - **Escopos e tarefas:** blocos `seq` são mantidos; a eliminação de um `if` dentro de `par` preserva seus comandos em uma única tarefa.
+- **Retorno de funções e métodos:** corpos com retorno de valor são preservados, pois o backend atual infere seu tipo a partir da AST original.
 - **Controle Opcional:** Habilitado com alternância via checkbox `⚡ Otimizar` na Interface Web Didática ou via parâmetro `otimizar=True` em `analise.analisar()`, fornecendo métricas de redução de nós da AST e relatório de transformações aplicadas.
 
 ### 2. Execução Direta (CLI)

@@ -23,6 +23,9 @@ from analise import analisar
      'print(x); }', ['1']),
     ('seq { var x = 2; print(x && true); print(x || false); '
      'var y = 0.0; print(1 / (y + 0)); }', ['1', '1', 'inf']),
+    ('func f() { return 3 / 2; } '
+     'func g() { if (false) { return 1.5; } return 1; } '
+     'seq { print(f() / 2); print(g() / 2); }', ['0.5', '0.5']),
 ])
 def test_execucao_preservada(tmp_path, code, expected):
     outputs = []

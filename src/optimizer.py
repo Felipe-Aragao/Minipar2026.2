@@ -55,6 +55,15 @@ class ASTOptimizer:
             return self.is_pure(node.object)
         return False
 
+    def _contains_value_return(self, node: ASTNode) -> bool:
+        if isinstance(node, ReturnStmt) and node.value is not None:
+            return True
+        for value in vars(node).values():
+            children = value if isinstance(value, list) else [value]
+            if any(isinstance(child, ASTNode) and self._contains_value_return(child) for child in children):
+                return True
+        return False
+
     def optimize(self, program: Program) -> ResultadoOtimizacao:
         """Executa passadas de otimização até atingir ponto fixo ou limite máximo."""
         self.transformacoes = []
@@ -136,12 +145,15 @@ class ASTOptimizer:
             return node
 
         if isinstance(node, FuncDecl):
+            # O backend infere o tipo de retorno pela AST original do corpo.
+            if self._contains_value_return(node.body):
+                return node
             node.body = self._transform_node(node.body) or SeqBlock(statements=[])
             return node
 
         if isinstance(node, ClassDecl):
             for method in node.methods:
-                method.body = self._transform_node(method.body)
+                self._transform_node(method)
             return node
 
         if isinstance(node, FuncCallExpr):
