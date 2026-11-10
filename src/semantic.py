@@ -247,6 +247,14 @@ class SemanticAnalyzer:
                         if arg_type not in ("string", "unknown") or port_type not in ("number", "int", "unknown"):
                              self._report(node, f"Alocacao 'host' requer endereco IP ('string') e porta ('number').")
 
+            if node.destino and node.destino.tipo == "host":
+                if not isinstance(node.body, FuncCallExpr) or node.body.name not in self._functions:
+                    self._report(node, "fork host requer chamada a uma funcao MiniPar com retorno numerico.")
+                else:
+                    for arg in node.body.arguments:
+                        if self._infer_type(arg) not in ("int", "number", "unknown", "var"):
+                            self._report(arg, "fork host requer argumentos inteiros de 32 bits.")
+
             self._validate_parallel_task(node.body, "fork")
 
         elif isinstance(node, JoinStmt):

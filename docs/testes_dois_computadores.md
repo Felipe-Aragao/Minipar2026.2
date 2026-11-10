@@ -96,9 +96,31 @@ verifica as respostas e identifica o resultado como local. Não comprova dois PC
 - A rede pode falhar mesmo com a compilação correta; o executor retorna erro e
   não converte falha de conexão em resultado aprovado.
 
-## Escopo que continua pendente
+## Despacho de tarefas com fork host
 
-`fork host(...)` ainda avisa e executa localmente. Nestes ensaios, cada usuário
-inicia explicitamente um programa na sua máquina, e os programas se comunicam por
-mensagens TCP. Isso valida os exemplos distribuídos, não o envio automático de
-um bloco MiniPar arbitrário para execução remota.
+Os ensaios acima testam troca de mensagens entre programas iniciados em dois
+computadores. O exemplo abaixo testa uma subtarefa iniciada pelo próprio `fork`.
+
+Salve o mesmo programa como `fork_remoto.minipar` nos dois PCs e troque o
+endereço pelo IPv4 do PC B.
+
+```minipar
+func quadrado(n) { return n * n; }
+seq {
+    var tarefa = fork host("192.168.0.113", 5001) quadrado(7);
+    print(join(tarefa));
+}
+```
+
+Compile com `python main.py fork_remoto.minipar` nos dois PCs. Use a mesma
+versão do compilador e as mesmas opções nos dois. No PC B, rode
+`python minipar_worker.py output/fork_remoto 5001 --bind 192.168.0.113`
+(use `output/fork_remoto.exe` no Windows). Execute o binário no PC A.
+O PC A deve imprimir `49` e o worker no PC B deve registrar a tarefa e o IP do PC A.
+Para testar na mesma máquina, use `127.0.0.1` no programa e no worker.
+
+O worker executa apenas as funções selecionadas pelos pontos de `fork host`
+do executável configurado. Use-o em uma rede privada com participantes
+conhecidos. O protocolo não autentica clientes. O destino também aceita um
+`c_channel` para fornecer IP e porta. São aceitos argumentos inteiros de 32
+bits e retorno numérico. O `join` propaga falhas de conexão e execução.

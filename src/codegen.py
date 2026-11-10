@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import os
 import subprocess
 import sys
@@ -11,6 +12,7 @@ from ast_nodes import (
     CChannelExpr, SendStmt,ForkStmt,JoinStmt, ReceiveExpr, ListLiteral, MatrixCreateExpr, IndexExpr, IndexAssign
 )
 from cpp_template import _CPP_HEADER
+from cpp_remote import CPP_REMOTE
 
 class CppCodeGenerator:
     @staticmethod
@@ -110,8 +112,7 @@ class CppCodeGenerator:
                 core_expr = self._translate_expression(node.destino.args[0])
                 core_setup = f"__set_core_affinity(static_cast<int>({core_expr})); "
             elif node.destino and node.destino.tipo == "host":
-                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
-                core_setup = 'std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl; '
+                return self._translate_remote_fork(node)
 
             if isinstance(node.body, SeqBlock):
                 body_lines = []
@@ -220,8 +221,7 @@ class CppCodeGenerator:
                 core_expr = self._translate_expression(node.destino.args[0])
                 core_setup = f"__set_core_affinity(static_cast<int>({core_expr}));\n"
             elif node.destino and node.destino.tipo == "host":
-                print(f"[AVISO CODEGEN] Linha {getattr(node, 'line', '?')}: 'fork host(...)' executara localmente; despacho remoto requer configuracao de socket de rede.", file=sys.stderr)
-                core_setup = f'{indent}        std::cerr << "[AVISO HOST] Despacho remoto requer configuracao de socket de rede; executando subtarefa localmente." << std::endl;\n'
+                return f"{indent}{self._translate_remote_fork(node)};\n"
 
             if isinstance(node.body, SeqBlock):
                 body_lines = []
@@ -327,7 +327,39 @@ class CppCodeGenerator:
                 f"{self._translate_expression(node.target.index)}, "
                 f"{self._translate_expression(node.value)})")
 
+    def _translate_remote_fork(self, node: ForkStmt) -> str:
+        call = node.body
+        task_id = len(self._remote_calls)
+        self._remote_calls.append(call)
+        destination = [self._translate_expression(arg) for arg in node.destino.args]
+        if len(destination) == 2:
+            destination[1] = f"__remote_int({destination[1]})"
+        request = f'std::string(__remote_program_id) + " {task_id}"'
+        for arg in call.arguments:
+            value = self._translate_expression(arg)
+            request += f' + " " + std::to_string(__remote_int({value}))'
+        return f'__remote_fork({", ".join(destination)}, {request})'
+
+    def _remote_dispatch(self, program_id: str) -> str:
+        code = '    if (argc > 1 && std::string(argv[1]) == "--minipar-worker") {\n'
+        code += f'        if (argc < 4 || std::string(argv[2]) != "{program_id}") return 2;\n'
+        code += '        try {\n            switch (std::stoi(argv[3])) {\n'
+        for task_id, call in enumerate(self._remote_calls):
+            args = ", ".join(f"std::stoi(argv[{i + 4}])" for i in range(len(call.arguments)))
+            code += f"""            case {task_id}: {{
+                if (argc != {len(call.arguments) + 4}) return 2;
+                const auto value = {call.name}({args});
+                static_assert(std::is_arithmetic_v<decltype(value)>,
+                              "fork host requer funcao com retorno numerico");
+                std::cout << "\\nRESULT " << std::setprecision(17)
+                          << static_cast<double>(value) << '\\n';
+                return 0;
+            }}
+"""
+        return code + '            }\n        } catch (const std::exception&) {}\n        return 2;\n    }\n'
+
     def generate_text(self, program: Program) -> str:
+        self._remote_calls = []
         cpp_code = _CPP_HEADER
         
         for node in program.statements:
@@ -357,6 +389,7 @@ class CppCodeGenerator:
                 else: cpp_code += self._translate_statement(node.body, "    ")
                 cpp_code += "}\n\n"
 
+        main_start = len(cpp_code)
         cpp_code += "int main() {\n    #ifdef _WIN32\n        SetConsoleOutputCP(CP_UTF8);\n        SetConsoleCP(CP_UTF8);\n        WSADATA wsa;\n        WSAStartup(MAKEWORD(2,2), &wsa);\n    #endif\n\n"
         for node in program.statements:
             if not isinstance(node, (ClassDecl, FuncDecl)):
@@ -364,6 +397,19 @@ class CppCodeGenerator:
                     for stmt in node.statements: cpp_code += self._translate_statement(stmt, "    ")
                 else: cpp_code += self._translate_statement(node, "    ")
         cpp_code += "\n    #ifdef _WIN32\n        WSACleanup();\n    #endif\n    return 0;\n}\n"
+        if self._remote_calls:
+            program_id = hashlib.sha256(cpp_code.encode("utf-8")).hexdigest()
+            declarations = CPP_REMOTE + f'\nconstexpr char __remote_program_id[] = "{program_id}";\n'
+            prefix = cpp_code[len(_CPP_HEADER):main_start]
+            main = cpp_code[main_start:].replace("int main()", "int main(int argc, char** argv)", 1)
+            setup, body = main.split("#endif\n\n", 1)
+            main = setup + "#endif\n\n" + self._remote_dispatch(program_id) + "    try {\n" + body
+            main = main.rsplit("}", 1)[0] + (
+                '    } catch (const std::exception& error) {\n'
+                '        std::cerr << error.what() << std::endl;\n'
+                '        return 1;\n    }\n}\n'
+            )
+            cpp_code = _CPP_HEADER + declarations + prefix + main
         return cpp_code
 
     def generate(self, program: Program, output_name: str) -> bool:

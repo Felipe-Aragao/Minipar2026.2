@@ -34,9 +34,11 @@ def test_lexico_preserva_posicoes_e_reinicia_entre_chamadas():
     ],
 )
 def test_fork_e_join_geram_ast_e_tac(declaracao, destino, tipo, tac_destino):
-    resultado = analisar(f"seq {{ {declaracao} fork {destino} {{ print(7); }} join; }}")
+    funcao = "func calcular(n) { return n * n; }" if tipo == "host" else ""
+    corpo = "calcular(7);" if tipo == "host" else "{ print(7); }"
+    resultado = analisar(f"{funcao} seq {{ {declaracao} fork {destino} {corpo} join; }}")
     assert resultado["erros"] == []
-    fork, join = resultado["ast"]["statements"][0]["statements"][-2:]
+    fork, join = resultado["ast"]["statements"][-1]["statements"][-2:]
     assert fork["node_type"] == "ForkStmt"
     if tipo is None:
         assert fork["destino"] is None
@@ -45,12 +47,18 @@ def test_fork_e_join_geram_ast_e_tac(declaracao, destino, tipo, tac_destino):
     assert join["node_type"] == "JoinStmt"
     assert join["args"] == []
 
-    linhas = resultado["tac"].splitlines()[-7:]
+    linhas = resultado["tac"].splitlines()
+    linhas = linhas[next(i for i, linha in enumerate(linhas) if linha.startswith("FORK ")): ]
     inicio = re.fullmatch(r"FORK (\w+)" + re.escape(tac_destino), linhas[0])
     assert inicio
     salto = re.fullmatch(r"goto (\w+)", linhas[1])
     assert salto
-    assert linhas[2:] == [inicio[1] + ":", "print 7", "END_TASK", salto[1] + ":", "JOIN ALL"]
+    assert linhas[2] == inicio[1] + ":"
+    assert linhas[-2:] == [salto[1] + ":", "JOIN ALL"]
+    if tipo == "host":
+        assert any("call calcular" in linha.lower() for linha in linhas[3:-2])
+    else:
+        assert linhas[3:-2] == ["print 7", "END_TASK"]
 
 
 def test_fork_com_expressao_mantem_o_resultado_da_subtarefa_no_tac():

@@ -70,7 +70,7 @@ template<typename T>
 std::shared_future<T> __register_task(std::future<T> fut) {
     auto sf = fut.share();
     __task_pool.push_back([sf]() mutable {
-        if (sf.valid()) sf.wait();
+        if (sf.valid()) sf.get();
     });
     return sf;
 }
@@ -78,7 +78,7 @@ std::shared_future<T> __register_task(std::future<T> fut) {
 template<typename T>
 std::shared_future<T> __register_task(std::shared_future<T> sf) {
     __task_pool.push_back([sf]() mutable {
-        if (sf.valid()) sf.wait();
+        if (sf.valid()) sf.get();
     });
     return sf;
 }
@@ -86,9 +86,12 @@ std::shared_future<T> __register_task(std::shared_future<T> sf) {
 inline void __task_pool_wait_all() {
     std::vector<std::function<void()>> tasks = std::move(__task_pool);
     __task_pool.clear();
+    std::exception_ptr error;
     for (auto& task : tasks) {
-        if (task) task();
+        try { task(); }
+        catch (...) { if (!error) error = std::current_exception(); }
     }
+    if (error) std::rethrow_exception(error);
 }
 
 // Helper para captura segura do retorno de tarefas (evita erro com tarefas de retorno void)
@@ -107,7 +110,7 @@ auto __minipar_get(Fut&& f) {
 template<typename T>
 void __minipar_join_target(T&& target) {
     if constexpr (requires { target.valid(); target.wait(); }) {
-        if (target.valid()) target.wait();
+        if (target.valid()) target.get();
     } else if constexpr (requires { std::begin(target); std::end(target); }) {
         for (auto& item : target) {
             __minipar_join_target(item);

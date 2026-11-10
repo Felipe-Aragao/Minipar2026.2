@@ -13,8 +13,8 @@
 > Documento de referência da sintaxe MiniPar 2026.2. Usa notação EBNF (opcionais e repetições), mantendo o nome BNF do projeto.
 > Aceitação sintática, validação semântica e geração de executável são etapas distintas.
 > `fork`/`join` possuem representação no front-end e no TAC e execução local em C++.
-> O runtime usa tarefas assíncronas e barreiras por thread. A execução remota via
-> `host` permanece pendente e gera aviso de execução local.
+> O runtime usa tarefas assíncronas e barreiras por thread. O destino `host`
+> despacha chamadas numéricas para um worker MiniPar via TCP.
 
 ---
 
@@ -299,10 +299,10 @@ par {
 
 ### 6.3 Divisão em Subtarefas Paralelas (FORK)
 
-A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador reconhece essa sintaxe, gera TAC e executa as tarefas localmente com `std::async`.
+A semântica pretendida de `fork` é dividir uma tarefa principal em subtarefas independentes executadas em paralelo. O compilador reconhece essa sintaxe, gera TAC e usa `std::async` para agendar a tarefa ou o envio ao worker.
 Conforme a especificação do MiniPar 2026.2, cada subtarefa criada via `fork` pode ser explicitamente alocada para:
 - **Um núcleo da CPU** (`core(<expressao>)`), com solicitação de afinidade ao sistema operacional; ou
-- **Um computador diferente** (`host(<expressao> [, <expressao>])`), com despacho remoto a implementar. A existência de canais TCP não implementa, por si só, o despacho de subtarefas.
+- **Um computador diferente** (`host(<expressao> [, <expressao>])`), com despacho via TCP para um worker que possui o mesmo programa compilado.
 
 O parser aceita `fork` como comando ou expressão. O semântico atribui o tipo `task` à expressão; a criação efetiva dessa referência e sua utilização em `join` dependem do back-end.
 
@@ -332,10 +332,9 @@ var t5 = fork core(5) {
 };
 
 # 2. Alocando subtarefas a computadores diferentes na rede
-var t_remota1 = fork host("192.168.1.10", 5001) {
-    processar_subtarefa_A();
-};
-var t_remota2 = fork host(canal_computador_2) processar_subtarefa_B();
+var t_remota1 = fork host("192.168.1.10", 5001) quadrado(7);
+var t_remota2 = fork host(canal_computador_2) quadrado(8);
+print(join(t_remota1), join(t_remota2));
 ```
 
 **Compatibilidade com o parser:** o corpo em bloco usa `{ ... }` diretamente;
@@ -343,6 +342,9 @@ var t_remota2 = fork host(canal_computador_2) processar_subtarefa_B();
 `;` depois de `}`; em uma declaração (`var t = fork ... { ... };`), o `;` encerra
 a declaração. O parser também aceita expressões que não são chamadas como corpo;
 essa aceitação não garante que o back-end consiga executá-las como subtarefas.
+No destino `host`, o corpo deve ser uma chamada a uma função MiniPar com retorno
+numérico. Os argumentos são avaliados no cliente e enviados como inteiros de
+32 bits. Veja [como iniciar o worker](docs/testes_dois_computadores.md#despacho-de-tarefas-com-fork-host).
 
 ### 6.4 Sincronização e Coleta de Subtarefas (JOIN)
 
@@ -1207,7 +1209,7 @@ Listas são rejeitadas com diagnóstico específico. Chamadas `append`, `push_ba
 | `obj.campo` | `obj->campo` |
 | `par { a; b; }` | `std::vector<std::thread>` + `emplace_back` + `join` |
 | `fork core(n) { ... }` | Tarefa assíncrona com captura por valor e solicitação de afinidade |
-| `fork host(ip, porta) { ... }` | Aviso e execução local, com despacho remoto pendente |
+| `fork host(ip, porta) funcao(n)` | Execução no worker; `join` coleta o resultado numérico ou propaga a falha |
 | `join(t)` / `join;` | Obtenção do resultado ou espera das tarefas da thread atual |
 | `c_channel(ip, porta)` | `std::make_shared<MiniParChannel>(ip, porta)` |
 | `send(canal, msg)` | `canal->sendData(__to_string(msg))` |

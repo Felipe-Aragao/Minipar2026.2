@@ -264,7 +264,7 @@ dois argumentos, e `launch_file` exige um. O reconhecimento de uma nativa não
 implica validação completa de todos os seus tipos. `core` exige expressão numérica;
 constantes devem ser inteiras e não negativas, com diagnóstico de divisão por
 zero na avaliação constante. `host` verifica as formas de canal ou IP/porta,
-sem implementar o despacho remoto. `join` rejeita listas e argumentos de tipo
+e exige chamada a uma função MiniPar com argumentos inteiros. `join` rejeita listas e argumentos de tipo
 conhecido incompatível com tarefa.
 
 ```text
