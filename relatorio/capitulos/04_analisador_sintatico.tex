@@ -1,0 +1,148 @@
+\chapter{ANALISADOR SINTÁTICO (PARSER)}
+
+O Analisador Sintático (\textit{Parser}) é responsável por verificar se a sequência linear de tokens produzida pelo Lexer obedece estritamente às regras gramaticais da linguagem MiniPar 2026.2 e por estruturar essas informações em uma Árvore de Sintaxe Abstrata (AST).
+
+No compilador MiniPar 2026.2, o analisador está implementado em \texttt{src/parser.py} e encapsulado no componente \texttt{C\_Sintatico}, que realiza a interface \texttt{ISintatico}. A AST resultante é composta por classes de nós fortemente tipadas, definidas em \texttt{src/ast\_nodes.py}.
+
+\section{Método de Descida Recursiva e Precedência por Camadas}
+
+O analisador utiliza a técnica de Análise Sintática Descendente Recursiva (\textit{Recursive Descent Parsing}):
+\begin{itemize}
+    \item Cada símbolo não-terminal da gramática BNF corresponde a uma função ou método dedicado na classe \texttt{Parser}.
+    \item Para eliminar ambiguidades e respeitar a precedência matemática e lógica dos operadores sem recursão à esquerda, as expressões são tratadas em camadas estratificadas descendentes:
+    \begin{center}
+    \small
+    $\text{Expressão} \;\longrightarrow\; \text{OU} \;\longrightarrow\; \text{E} \;\longrightarrow\; \text{Igualdade} \;\longrightarrow\; \text{Relacional}$ \\
+    $\;\longrightarrow\; \text{Aditiva} \;\longrightarrow\; \text{Multiplicativa} \;\longrightarrow\; \text{Unária} \;\longrightarrow\; \text{Pós-fixa} \;\longrightarrow\; \text{Primária}$
+    \end{center}
+    \item Em caso de divergência entre o token esperado e o token lido, o método \texttt{\_consume} lança uma exceção \texttt{ParseError}, indicando a mensagem acompanhada da linha e coluna correspondentes.
+\end{itemize}
+
+\section{Tratamento dos Construtos \texttt{fork} e \texttt{join}}
+
+Foram adicionadas produções no analisador sintático para o mapeamento das primitivas de paralelismo:
+\begin{enumerate}
+    \item Produção de \texttt{fork}: o método \texttt{\_parse\_fork()} identifica a palavra-chave \texttt{fork}, analisa o destino de alocação (\texttt{core(expressao)} ou \texttt{host(ip, porta)}) e constrói o nó \texttt{ForkStmt}, associando-o ao comando ou bloco correspondente.
+    \item Produção de \texttt{join}: o método \texttt{\_parse\_join()} reconhece a barreira global de sincronização (\texttt{join;}) e a espera seletiva por tarefas específicas (\texttt{join(t1, t2);}), gerando a instância de \texttt{JoinStmt}.
+\end{enumerate}
+
+\section{Pseudocódigo do Analisador Sintático}
+
+O Algoritmo \ref{algo:parser} apresenta o pseudocódigo formal do analisador sintático, cumprindo o Requisito 4 do projeto.
+
+\begin{lstlisting}[language=Python, caption={Pseudocódigo do Analisador Sintático (Parser)}, label={algo:parser}]
+CLASSE Parser:
+    ATRIBUTOS:
+        tokens: Lista de Tokens
+        posicao: Inteiro <- 0
+
+    METODO analisar_programa():
+        programa <- Novo No Program()
+        ENQUANTO token_atual().tipo != TOKEN_FIM_ARQUIVO:
+            comando <- analisar_comando_ou_declaracao()
+            SE comando != NULO:
+                programa.adicionar_comando(comando)
+        RETORNAR programa
+
+    METODO consumir(tipo_esperado, mensagem_erro):
+        SE token_atual().tipo == tipo_esperado:
+            t <- token_atual()
+            posicao <- posicao + 1
+            RETORNAR t
+        SENAO:
+            LANCAR ParseError(mensagem_erro, token_atual().linha, token_atual().coluna)
+
+    METODO analisar_comando_ou_declaracao():
+        token <- token_atual()
+        SE token.tipo == TOKEN_CLASS:
+            RETORNAR analisar_declaracao_classe()
+        SENAO SE token.tipo == TOKEN_FUNC:
+            RETORNAR analisar_declaracao_funcao()
+        SENAO SE token.tipo == TOKEN_VAR OU token.tipo == TOKEN_TIPO:
+            RETORNAR analisar_declaracao_variavel()
+        SENAO SE token.tipo == TOKEN_SEQ:
+            RETORNAR analisar_bloco_seq()
+        SENAO SE token.tipo == TOKEN_PAR:
+            RETORNAR analisar_bloco_par()
+        SENAO SE token.tipo == TOKEN_FORK:
+            RETORNAR analisar_comando_fork()
+        SENAO SE token.tipo == TOKEN_JOIN:
+            RETORNAR analisar_comando_join()
+        SENAO SE token.tipo == TOKEN_IF:
+            RETORNAR analisar_comando_if()
+        SENAO SE token.tipo == TOKEN_WHILE:
+            RETORNAR analisar_comando_while()
+        SENAO SE token.tipo == TOKEN_DO:
+            RETORNAR analisar_comando_do_while()
+        SENAO SE token.tipo == TOKEN_FOR:
+            RETORNAR analisar_comando_for()
+        SENAO SE token.tipo == TOKEN_PRINT:
+            RETORNAR analisar_comando_print()
+        SENAO SE token.tipo == TOKEN_SEND:
+            RETORNAR analisar_comando_send()
+        SENAO SE token.tipo == TOKEN_RETURN:
+            RETORNAR analisar_comando_return()
+        SENAO SE token.tipo == TOKEN_BREAK:
+            consumir(TOKEN_BREAK, "Esperado 'break'"); consumir(TOKEN_PONTO_VIRGULA, "Esperado ';'")
+            RETORNAR Novo No BreakStmt()
+        SENAO SE token.tipo == TOKEN_CONTINUE:
+            consumir(TOKEN_CONTINUE, "Esperado 'continue'"); consumir(TOKEN_PONTO_VIRGULA, "Esperado ';'")
+            RETORNAR Novo No ContinueStmt()
+        SENAO:
+            expr <- analisar_expressao()
+            SE token_atual().tipo == TOKEN_ATRIBUICAO:
+                consumir(TOKEN_ATRIBUICAO, "Esperado '='")
+                valor <- analisar_expressao()
+                consumir(TOKEN_PONTO_VIRGULA, "Esperado ';'")
+                RETORNAR Novo No Assignment(alvo=expr, valor=valor)
+            consumir(TOKEN_PONTO_VIRGULA, "Esperado ';'")
+            RETORNAR expr
+
+    METODO analisar_comando_fork():
+        consumir(TOKEN_FORK, "Esperado 'fork'")
+        SE token_atual().tipo == TOKEN_CORE:
+            consumir(TOKEN_CORE, "Esperado 'core'")
+            consumir(TOKEN_ABRE_PARENTESES, "Esperado '('")
+            nucleo <- analisar_expressao()
+            consumir(TOKEN_FECHA_PARENTESES, "Esperado ')'")
+            destino <- Novo No Destino(tipo="core", args=[nucleo])
+        SENAO SE token_atual().tipo == TOKEN_HOST:
+            consumir(TOKEN_HOST, "Esperado 'host'")
+            consumir(TOKEN_ABRE_PARENTESES, "Esperado '('")
+            host_ip <- analisar_expressao()
+            consumir(TOKEN_VIRGULA, "Esperado ','")
+            porta <- analisar_expressao()
+            consumir(TOKEN_FECHA_PARENTESES, "Esperado ')'")
+            destino <- Novo No Destino(tipo="host", args=[host_ip, porta])
+        SENAO:
+            LANCAR ParseError("Destino do fork deve ser 'core' ou 'host'", token_atual().linha)
+
+        corpo <- analisar_comando_ou_declaracao()
+        RETORNAR Novo No ForkStmt(destino=destino, corpo=corpo)
+
+    METODO analisar_comando_join():
+        consumir(TOKEN_JOIN, "Esperado 'join'")
+        args <- Lista_Vazia()
+        SE token_atual().tipo == TOKEN_ABRE_PARENTESES:
+            consumir(TOKEN_ABRE_PARENTESES, "Esperado '('")
+            SE token_atual().tipo != TOKEN_FECHA_PARENTESES:
+                args.adicionar(analisar_expressao())
+                ENQUANTO token_atual().tipo == TOKEN_VIRGULA:
+                    consumir(TOKEN_VIRGULA, "Esperado ','")
+                    args.adicionar(analisar_expressao())
+            consumir(TOKEN_FECHA_PARENTESES, "Esperado ')'")
+        consumir(TOKEN_PONTO_VIRGULA, "Esperado ';'")
+        RETORNAR Novo No JoinStmt(args=args)
+
+    METODO analisar_expressao():
+        RETORNAR analisar_ou_logico()
+
+    METODO analisar_ou_logico():
+        esquerda <- analisar_e_logico()
+        ENQUANTO token_atual().tipo == TOKEN_OU_LOGICO:
+            op <- consumir(TOKEN_OU_LOGICO, "Esperado '||'").lexema
+            direita <- analisar_e_logico()
+            esquerda <- Novo No BinaryExpr(op=op, esquerda=esquerda, direita=direita)
+        RETORNAR esquerda
+FIM_CLASSE
+\end{lstlisting}

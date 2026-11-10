@@ -1,0 +1,93 @@
+\chapter{TABELA DE SÍMBOLOS}
+
+A Tabela de Símbolos é a estrutura de dados central encarregada de registrar e consultar identificadores de variáveis, funções, classes, métodos e atributos declarados ao longo da compilação de um programa em MiniPar 2026.2. 
+
+No compilador, a gestão de símbolos está formalizada no componente \texttt{C\_TabelaSimbolos} (\texttt{src/componente\_tabela\_simbolos.py}), que realiza os contratos da interface \texttt{ITabelaSimbolos}.
+
+\section{Estrutura de Dados e Pilha de Escopos Léxicos}
+
+A arquitetura adota uma Pilha de Dicionários de Símbolos (\textit{Scope Stack}):
+\begin{itemize}
+    \item Escopo Global: corresponde à base da pilha (índice 0), contendo as declarações acessíveis universalmente em todo o módulo compilado.
+    \item Escopos Locais Aninhados: a cada entrada em um novo contexto delimitado (corpo de funções, métodos de classes, blocos de controle \texttt{if}, laços \texttt{while}/\texttt{for} e blocos concorrentes \texttt{seq}/\texttt{par}), uma nova tabela local é empilhada através da operação \texttt{entrar\_escopo()}.
+    \item Resolução de Identificadores (Sombra / \textit{Shadowing}): a consulta (\texttt{consultar(nome)}) percorre a pilha em sentido descendente (do topo atual para a base). Se um símbolo existir em um escopo mais interno, ele tem prioridade sobre definições em escopos externos, modelando o sombreamento de variáveis.
+    \item Encerramento de Escopo: ao atingir o término de um bloco, o método \texttt{sair\_escopo()} desempilha a tabela local. Para alimentar relatórios didáticos na interface Web, o componente preserva um histórico de todos os símbolos registrados na sessão.
+\end{itemize}
+
+Cada símbolo é modelado como uma instância da classe \texttt{Symbol}, registrando:
+\begin{itemize}
+    \item \texttt{name}: Nome textual do identificador;
+    \item \texttt{type}: Tipo associado (\texttt{int}, \texttt{number}, \texttt{string}, \texttt{bool}, \texttt{list}, \texttt{task}, nome da classe ou \texttt{var});
+    \item \texttt{params}: Lista de tipos/nomes de parâmetros (no caso de funções e métodos);
+    \item \texttt{attributes}: Dicionário de atributos de instância com seus respectivos tipos;
+    \item \texttt{methods}: Dicionário contendo as assinaturas de métodos declarados na classe.
+\end{itemize}
+
+\section{Pseudocódigo da Tabela de Símbolos}
+
+O Algoritmo \ref{algo:tabela_simbolos} formaliza a implementação do componente de Tabela de Símbolos, atendendo ao Requisito 6.
+
+\begin{lstlisting}[language=Python, caption={Pseudocódigo da Tabela de Símbolos}, label={algo:tabela_simbolos}]
+CLASSE Simbolo:
+    ATRIBUTOS:
+        nome: Texto
+        tipo: Texto
+        parametros: Lista de Textos <- []
+        atributos: Dicionario[Texto, Texto] <- {}
+        metodos: Dicionario[Texto, Lista de Textos] <- {}
+
+CLASSE TabelaDeSimbolos:
+    ATRIBUTOS:
+        pilha_escopos: Pilha de Dicionarios[Texto, Simbolo]
+        historico_declaracoes: Lista de Metadados
+        proximo_id_escopo: Inteiro <- 1
+
+    METODO inicializar():
+        pilha_escopos <- Nova_Pilha()
+        escopo_global <- Novo_Dicionario()
+        pilha_escopos.empilhar(escopo_global)
+
+    METODO entrar_escopo():
+        novo_escopo_local <- Novo_Dicionario()
+        pilha_escopos.empilhar(novo_escopo_local)
+        proximo_id_escopo <- proximo_id_escopo + 1
+
+    METODO sair_escopo():
+        SE tamanho(pilha_escopos) > 1:
+            pilha_escopos.desempilhar()
+
+    METODO declarar(nome, tipo, linha=NULO, params=[], attrs={}, methods={}):
+        escopo_atual <- pilha_escopos.topo()
+        
+        # Impede redeclaracao de identificador no mesmo escopo
+        SE nome EXISTE_EM escopo_atual:
+            RETORNAR FALSO  # Redeclaracao invalida detectada
+        
+        novo_simbolo <- Novo Simbolo(nome=nome, tipo=tipo, parametros=params, 
+                                     atributos=attrs, metodos=methods)
+        escopo_atual[nome] <- novo_simbolo
+
+        # Registra no historico cumulativo para exibicao didatica
+        registro <- Novo_Registro(nome=nome, tipo=tipo, linha=linha, 
+                                  nivel_escopo=tamanho(pilha_escopos) - 1)
+        historico_declaracoes.adicionar(registro)
+        RETORNAR VERDADEIRO
+
+    METODO consultar(nome):
+        # Percorre a pilha do escopo mais interno (topo) para o global (base)
+        PARA i DE (tamanho(pilha_escopos) - 1) ATE 0 PASSO -1:
+            escopo <- pilha_escopos[i]
+            SE nome EXISTE_EM escopo:
+                RETORNAR escopo[nome]
+        RETORNAR NULO  # Simbolo nao encontrado em nenhum escopo ativo
+
+    METODO localizar_escopo(nome):
+        PARA i DE (tamanho(pilha_escopos) - 1) ATE 0 PASSO -1:
+            SE nome EXISTE_EM pilha_escopos[i]:
+                RETORNAR i  # 0 indica global, >= 1 indica local
+        RETORNAR NULO
+
+    METODO listar_simbolos_historico():
+        RETORNAR historico_declaracoes
+FIM_CLASSE
+\end{lstlisting}

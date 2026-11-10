@@ -1,0 +1,280 @@
+\chapter{BATERIA OFICIAL DOS 11 PROGRAMAS DE TESTE}
+
+A validação empírica e funcional do compilador MiniPar 2026.2 foi realizada através da execução da bateria completa dos 11 programas de teste oficiais, localizados em \texttt{tests/oficiais/}. Cada teste demonstra a eficácia do compilador em cenários de alta complexidade algorítmica, orientação a objetos, comunicação em rede, concorrência e paralelismo real com divisão em múltiplos núcleos físicos da CPU.
+
+\section{Teste 1: Calculadora Cliente-Servidor com Sockets TCP}
+O Teste 1 valida a comunicação por canais (\texttt{c\_channel}) operando via sockets TCP/IP. No programa, a thread cliente lê do usuário a operação aritmética desejada (\texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}) e os dois operandos, despachando-os via \texttt{send} para a thread servidora em portas locais dedicadas. A servidora recebe os dados (\texttt{receive}), calcula o resultado e devolve a resposta ao cliente.
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print da tela da execução do Teste 1 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a saída no terminal ou na aba 'Terminal \& Execução' da web exibindo 'Servidor recebeu: + 3 4' e 'Resultado: 7'.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 1 (Calculadora Cliente-Servidor)}
+    \label{fig:teste1_print}
+\end{figure}
+
+\section{Teste 2: Paralelismo Concorrente (Fatorial e Fibonacci)}
+O Teste 2 valida a execução simultânea de algoritmos clássicos dentro de um bloco concorrente \texttt{par}. Enquanto uma thread calcula o fatorial de um número inteiro, uma segunda thread calcula iterativamente a sequência da série de Fibonacci, demonstrando a sobreposição de tarefas sem contenção.
+
+A listagem a seguir apresenta a saída gerada pela execução nativa do binário compilado:
+
+\begin{lstlisting}[language=bash, caption={Saida da execucao nativa do Teste 2}]
+Fibonacci:
+0
+1
+1
+2
+3
+5
+8
+13
+Fatorial de 5: 120
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela de execução do Teste 2 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela executando \texttt{teste02\_fatorial\_fibonacci\_par.exe} exibindo o cálculo paralelo.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 2 (Fatorial e Fibonacci Simultâneos)}
+    \label{fig:teste2_print}
+\end{figure}
+
+\section{Teste 3: Neurônio Perceptron com Orientação a Objetos}
+O Teste 3 implementa a classe \texttt{Neuronio}, exercitando a instanciação de objetos (\texttt{new}), acesso a atributos de instância via \texttt{this}, função de ativação linear/degrau e o loop de treinamento supervisionado iterativo até a convergência do erro para zero.
+
+A listagem a seguir apresenta a convergência obtida na iteração 51:
+
+\begin{lstlisting}[language=bash, caption={Trecho final do treinamento do Perceptron (Teste 3)}]
+#### Iteracao: 50
+Peso: 0.0100
+Saida: 1
+Erro: -1
+Peso do bias: 0.0100
+
+#### Iteracao: 51
+Peso: -0.0000
+Saida: 0
+Erro: 0
+
+[OK] Parabens! O neuronio aprendeu.
+Valor desejado: 0
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela de execução do Teste 3 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela executando \texttt{teste03\_neuronio.exe} exibindo as iterações e a mensagem de aprendizado.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 3 (Treinamento do Perceptron)}
+    \label{fig:teste3_print}
+\end{figure}
+
+\section{Teste 4: Rede Neural MLP (Problema XOR)}
+O Teste 4 implementa uma Rede Neural Perceptron Multicamadas (MLP) com três neurônios na camada oculta e um neurônio de saída. O programa exercita funções matemáticas complexas (\texttt{sigmoid} com \texttt{exp}), retropropagação de erro (\textit{backpropagation}) e listas de pesos multidimensionais, aprendendo com sucesso a função lógica não-linear XOR.
+
+\begin{lstlisting}[language=bash, caption={Saida da Rede Neural MLP para a porta XOR (Teste 4)}]
+==== Teste 4: rede neural XOR com backpropagation ====
+Input: [0, 0], Predicted Output: 0.00684395
+Input: [0, 1], Predicted Output: 0.986493
+Input: [1, 0], Predicted Output: 0.98925
+Input: [1, 1], Predicted Output: 0.0140296
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela de execução do Teste 4 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela executando \texttt{teste04\_rede\_neural\_xor.exe} demonstrando a convergência das predições da XOR.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 4 (Rede Neural MLP para o Problema XOR)}
+    \label{fig:teste4_print}
+\end{figure}
+
+\section{Teste 5: Sistema de Recomendação de E-commerce}
+O Teste 5 modela um sistema de recomendação de produtos utilizando orientação a objetos avançada (\texttt{Produto}, \texttt{Categoria}, \texttt{Usuario}, \texttt{Recomendador}), codificação binária de histórico (\textit{one-hot encoding}) e rede neural densa com ativações ReLU e Sigmóide.
+
+\section{Teste 6: Quicksort Recursivo com POO}
+O Teste 6 valida o algoritmo de Quicksort implementado de forma recursiva dentro da classe \texttt{Quicksort}, integrado a uma classe \texttt{InterfaceOrdenacao} que consome uma lista de números inteiros desordenados fornecida pelo usuário via \texttt{input()}.
+
+\begin{lstlisting}[language=bash, caption={Execucao interativa do Quicksort Recursivo com POO (Teste 6)}]
+==== Ordenacao com Quicksort ====
+Insira os elementos do vetor separados por espaco: 6 3 8 1 9 2
+Vetor original: [6, 3, 8, 1, 9, 2]
+Vetor ordenado: [1, 2, 3, 6, 8, 9]
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela de execução do Teste 6 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela executando \texttt{teste06\_quicksort\_classes.exe} com entrada de vetor e resultado ordenado.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 6 (Quicksort Recursivo com POO)}
+    \label{fig:teste6_print}
+\end{figure}
+
+\section{Teste 7: Quicksort Iterativo com Pilha Explícita e Validação de TAC}
+Conforme detalhado no Capítulo 8, o Teste 7 executa o Quicksort iterativo através de uma pilha explícita de índices (\texttt{stack.pop()} e \texttt{stack.append()}), validando a conformidade formal das instruções de Three-Address Code emitidas pelo compilador.
+
+\begin{lstlisting}[language=bash, caption={Saida do Quicksort Iterativo com Pilha (Teste 7)}]
+Array ordenado: [5, 12, 33, 61, 98]
+\end{lstlisting}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela de execução do Teste 7 no Terminal ou Interface Web>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela executando \texttt{teste07\_quicksort\_iterativo\_tac.exe} exibindo o array ordenado.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 7 (Quicksort Iterativo com Pilha)}
+    \label{fig:teste7_print}
+\end{figure}
+
+\section{Teste 8: Avaliação Paralela em 4 Núcleos de CPU (Speedup)}
+O Teste 8 simula a correção paralela de 160 atividades acadêmicas distribuídas entre 1 Professor e 3 Monitores, divididas entre 4 núcleos dedicados de hardware utilizando \texttt{fork core(id)}. O programa computa o tempo sequencial, o tempo paralelo e calcula o ganho de aceleração (\textit{Speedup}):
+$$S = \frac{T_{sequencial}}{T_{paralelo}} = \frac{3.05\,\text{s}}{2.58\,\text{s}} \approx 1.18\times \quad (\text{Economia de } 15.5\%)$$
+
+\begin{table}[htbp]
+\centering
+\caption{Benchmark de Desempenho do Teste 8 (4 Núcleos)}
+\label{tab:bench_teste8}
+\begin{tabular}{lc}
+\toprule
+Métrica de Avaliação & Valor Obtido \\
+\midrule
+Carga de Trabalho & 160 atividades (40 alunos $\times$ 4 tarefas) \\
+Tempo Sequencial (1 Núcleo / Professor) & 3.05 s \\
+Tempo Paralelo (4 Núcleos: Professor + 3 Monitores) & 2.58 s \\
+Aceleração (\textit{Speedup}) & 1.18$\times$ mais rápido \\
+Redução no Tempo de Execução & 15.5\% de economia \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print da tela de execução do Teste 8 exibindo a tabela de benchmark e speedup>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar a tela do terminal executando o teste 8 oficial.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Evidência de Execução do Teste 8 (Benchmark em 4 Núcleos)}
+    \label{fig:teste8_print}
+\end{figure}
+
+\section{Teste 9: 5 Núcleos (Avaliação Paralela + Fractal Mandelbrot ASCII)}
+O Teste 9 aloca 4 núcleos dedicados para a avaliação concorrente das atividades acadêmicas, enquanto um quinto núcleo independente (\texttt{core 4}) é encarregado de calcular e renderizar o conjunto fractal de Mandelbrot em arte ASCII diretamente no terminal:
+
+\begin{lstlisting}[language=bash, caption={Saida do Fractal de Mandelbrot gerado pelo Nucleo 5}]
+=== FRACTAL DE MANDELBROT (Gerado pelo Nucleo 5) ===
+               .
+             ..=:.
+             @@@:
+         +@.@@@@@@@@@. :..
+         .@@@@@@@@@@@@@@:
+        . #@@@@@@@@@@@@@@@@@:
+     .@:@@@- :@@@@@@@@@@@@@@@@@@:
+   - .@@@@@@@@@@@@@@@@@@@@@@@@@@@
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.
+   - .@@@@@@@@@@@@@@@@@@@@@@@@@@@
+     .@:@@@- :@@@@@@@@@@@@@@@@@@:
+        . #@@@@@@@@@@@@@@@@@:
+         .@@@@@@@@@@@@@@:
+         +@.@@@@@@@@@. :..
+             @@@:
+             ..=:.
+               .
+\end{lstlisting}
+
+\section{Teste 10: 6 Núcleos (Avaliação + Mandelbrot + Tapete de Sierpinski)}
+O Teste 10 representa o teste máximo de estresse de multiprocessamento da especificação oficial, alocando 6 núcleos físicos de CPU simultaneamente:
+\begin{itemize}
+    \item Núcleos 0 a 3: Avaliação concorrente das 160 atividades;
+    \item Núcleo 4: Renderização do Fractal de Mandelbrot ASCII;
+    \item Núcleo 5: Geração algorítmica recursiva do Tapete de Sierpinski, sintetizando uma imagem gráfica em formato BMP (\texttt{output/tapete\_sierpinski.bmp}).
+\end{itemize}
+
+A Figura \ref{fig:tapete_sierpinski} ilustra o arquivo de imagem gerado pelo programa MiniPar no Teste 10.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.45\textwidth]{figuras/tapete_sierpinski.png}
+    \caption{Tapete de Sierpinski Gerado pelo Núcleo 5 no Teste 10 (\texttt{tapete\_sierpinski.bmp})}
+    \label{fig:tapete_sierpinski}
+\end{figure}
+
+\section{Teste 11: Tokenizador, Avaliador e Mini-Compilador Assembly ARMv7}
+O Teste 11 implementa um mini-compilador completo escrito na própria linguagem MiniPar:
+\begin{enumerate}
+    \item Recebe do usuário expressões aritméticas completas (ex: \texttt{((10 -8*7)+4)*2});
+    \item Tokeniza e analisa sintaticamente a expressão;
+    \item Avalia e calcula o resultado numérico;
+    \item Sintetiza instruções Assembly ARMv7 (\texttt{MOV}, \texttt{ADD}, \texttt{SUB}, \texttt{MUL}, \texttt{PUSH}, \texttt{POP}) e grava em disco o arquivo fonte Assembly compilável (\texttt{.arm}).
+\end{enumerate}
+
+\section{Tabela Resumo dos Estados dos Testes}
+
+A Tabela \ref{tab:resumo_testes} consolida o status e os cenários cobertos por toda a suíte de testes.
+
+\begin{table}[htbp]
+\centering
+\caption{Resumo Geral dos Estados dos Testes Oficiais}
+\label{tab:resumo_testes}
+\small
+\begin{tabular}{p{2cm}p{6cm}p{5.5cm}}
+\toprule
+Teste & Cenário Coberto & Resultado Observado \\
+\midrule
+Teste 01 & Sockets TCP, \texttt{c\_channel}, \texttt{send}/\texttt{receive}. & Comunicação cliente-servidor aprovada. \\
+Teste 02 & Concorrência local com bloco \texttt{par}. & Fatorial e Fibonacci simultâneos. \\
+Teste 03 & POO, atributos \texttt{this}, convergência. & Perceptron convergiu com erro zero. \\
+Teste 04 & Rede Neural MLP, \texttt{sigmoid}, backprop. & Problema XOR resolvido com acurácia. \\
+Teste 05 & POO, e-commerce, ativações ReLU/Sigmoid. & Recomendações geradas com sucesso. \\
+Teste 06 & Quicksort recursivo orientado a objetos. & Ordenação com \texttt{input} do usuário. \\
+Teste 07 & Quicksort iterativo com pilha explícita. & TAC validado formalmente. \\
+Teste 08 & Paralelismo em 4 núcleos com Speedup. & $1.18\times$ mais rápido no modo paralelo. \\
+Teste 09 & 5 núcleos com Fractal de Mandelbrot. & Renderização ASCII e avaliação simultânea. \\
+Teste 10 & 6 núcleos com Mandelbrot e Sierpinski. & Arquivo gráfico BMP gerado em paralelo. \\
+Teste 11 & Mini-compilador de expressões e ARMv7. & Síntese e gravação de Assembly ARMv7. \\
+\bottomrule
+\end{tabular}
+\end{table}

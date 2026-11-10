@@ -1,0 +1,81 @@
+\chapter{INTERFACES DO COMPILADOR (3 MODALIDADES)}
+
+Conforme especificado no enunciado oficial do projeto MiniPar 2026.2, o sistema oferece três modalidades distintas de interface: Linha de Comando (CLI), Primeira Interface Web (Desenvolvedor) e Segunda Interface Web (Didática).
+
+\section{Modalidade 1: Interface de Linha de Comando (CLI) e Menu Terminal}
+
+A interface por linha de comando (\texttt{main.py} e \texttt{menu.py}) é orientada à automação em esteiras de integração contínua (CI) e à execução ágil de testes diretamente pelo console:
+\begin{itemize}
+    \item Modo Direto: permite compilar qualquer arquivo \texttt{.minipar} passando seu caminho como argumento:
+    \begin{lstlisting}[language=bash]
+python main.py tests/oficiais/teste07_quicksort_iterativo_tac.minipar
+    \end{lstlisting}
+    \item Menu Interativo de Testes: executado via \texttt{python menu.py}, exibe uma lista numerada dos 11 testes oficiais, permitindo executar todos os testes em lote ou disparar um teste individual com captura de entrada do usuário.
+    \item Coordenação Multi-Terminal: o módulo \texttt{test\_orchestrator.py} coordena múltiplos terminais abertos para cenários distribuídos, monitorando o progresso de cada participante através de estado compartilhado em \texttt{output/.test\_session.json}.
+\end{itemize}
+
+\section{Modalidade 2: Primeira Interface Web (Desenvolvedor)}
+
+A primeira interface Web é voltada ao perfil de desenvolvedor e pode ser acessada na rota:
+\[ \texttt{http://127.0.0.1:5000/ide} \]
+
+Essa interface apresenta:
+\begin{itemize}
+    \item Editor de código baseado no CodeMirror com realce de sintaxe;
+    \item Painel lateral com lista de arquivos de testes;
+    \item Abas superiores com visualização simultânea do código C++ gerado e da saída em Três Endereços (TAC);
+    \item Terminal inferior integrado para exibição da saída padrão (\texttt{stdout}) e mensagens de erro do compilador.
+\end{itemize}
+
+A Figura \ref{fig:ide_dev} ilustra a interface de desenvolvedor, permitindo editar programas MiniPar, compilar com exibição lado a lado de C++ e TAC, e executar com saída no terminal integrado.
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir print atualizado da tela da Primeira Interface Web (IDE do Desenvolvedor) no navegador em http://127.0.0.1:5000/ide>}\\
+            \vspace{0.3cm}
+            \textit{\small Nota: Capturar a tela do navegador acessando a rota /ide com um programa carregado, exibindo as abas de C++ e TAC e o terminal.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Primeira Interface Web (IDE do Desenvolvedor -- \texttt{/ide})}
+    \label{fig:ide_dev}
+\end{figure}
+
+\section{Modalidade 3: Segunda Interface Web (Didática / Educacional)}
+
+O compilador inclui a Segunda Interface Web Didática, concebida para atender ao aprendizado prático de compiladores. Ela está disponível na rota raiz e didática do servidor:
+\[ \texttt{http://127.0.0.1:5000/}\quad\text{e}\quad\texttt{http://127.0.0.1:5000/didatico} \]
+
+\subsection{Inspiração Visual e Filosofia de Design}
+Inspirada no compilador educacional do Instituto Federal de Santa Catarina (IFSC), a interface apresenta um layout limpo, moderno, responsivo e modular, com painéis ajustáveis e controles organizados por fase.
+
+\subsection{Controles Didáticos Passo a Passo (Botões de Fase)}
+Diferentemente de compilações monolíticas em que todo o processo ocorre em caixa-preta, a interface didática decompõe o processo de compilação em botões dedicados que podem ser acionados passo a passo:
+
+\begin{enumerate}
+    \item Tokens -- Lexer (Botão): apresenta uma tabela interativa contendo todos os tokens identificados pelo analisador léxico, detalhando a categoria sintática (\texttt{TokenType}), o lexema original, a linha e a coluna exatas, além de ferramentas de busca e filtros por categoria.
+    \item AST -- Árvore Sintática (Botão): em vez de apenas um dump textual ou ASCII, a interface renderiza uma árvore sintática interativa em SVG/D3.js. Os nós possuem cores temáticas por categoria (comandos, expressões, classes), são colapsáveis com suporte a expansão sob clique, navegação por arrasto (\textit{pan}) e ampliação dinâmica (\textit{zoom}). Árvores extensas iniciam recolhidas para manter a tela limpa, com botão \textit{"Expandir Tudo"} para inspeção completa.
+    \item Análise Semântica (Botão): exibe o status da validação semântica, lista de diagnósticos com linha/coluna e a Tabela de Símbolos completa, discriminando escopos léxicos, nomes, tipos e assinaturas.
+    \item TAC -- Código de 3 Endereços (Botão): exibe o código intermediário linear destrinchado instrução por instrução com destaque sintático para registradores temporários e rótulos de controle.
+    \item Código C++ Gerado (Botão): exibe o código-fonte C++20 transpilado gerado em memória pelo componente \texttt{ICodegen}.
+    \item Compilar e Baixar Executável (Botão): dispara a compilação nativa isolada no backend via \texttt{g++ -O3} e disponibiliza o download direto do binário executável (\texttt{.exe} no Windows ou executável ELF no Linux).
+    \item Executar (Botão): executa o binário compilado em um contêiner de execução no servidor, com suporte à passagem de dados pré-digitados no painel de \textit{Terminal \& Execução} (uma resposta por linha, preservando espaços e vírgulas).
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{2cm}
+            \textcolor{red}{<Inserir print da tela da Segunda Interface Web Didática com a Árvore Sintática (AST) interativa expandida e botões de fase didáticos no navegador>}\\
+            \vspace{0.3cm}
+            \textit{\small Nota: Capturar a tela acessando http://127.0.0.1:5000/ com um dos exemplos carregados (ex: Teste 02 ou Teste 03) exibindo a árvore em D3.js.}
+            \vspace{2cm}
+        }
+    }
+    \caption{Segunda Interface Web Didática do MiniPar 2026.2 (Visualizador Gráfico Interativo de AST)}
+    \label{fig:ide_didatica_ast}
+\end{figure}

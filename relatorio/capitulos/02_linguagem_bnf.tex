@@ -1,0 +1,149 @@
+\chapter{A LINGUAGEM MINIPAR 2026.2 E GRAMÁTICA BNF}
+
+A linguagem MiniPar 2026.2 é uma linguagem imperativa, concorrente, distribuída e fortemente tipada em seu modelo conceitual, integrando elementos sintáticos inspirados em Python, C++ e Go. Sua gramática formal suporta abstrações para Orientação a Objetos, controle de fluxo abrangente, manipulação de coleções dinâmicas e estruturas para comunicação e paralelismo.
+
+\section{Características Fundamentais e Novos Paradigmas}
+
+O compilador dá suporte formal ao paradigma de real paralelismo com execução em múltiplos núcleos e nós de rede:
+
+\begin{enumerate}
+    \item Blocos \texttt{seq} e \texttt{par}:
+    O comando \texttt{seq \{ ... \}} garante a ordem sequencial de execução dos enunciados internos. O bloco \texttt{par \{ ... \}} dispara os comandos contidos como threads concorrentes no computador local, aguardando que todas concluam antes de prosseguir.
+    
+    \item Primitivas \texttt{fork} e \texttt{join} (Paralelismo Real Distribuído):
+    A primitiva \texttt{fork} realiza a divisão de uma tarefa em subtarefas independentes alocadas explicitamente a recursos de processamento:
+    \begin{itemize}
+        \item \texttt{fork core(id) comando;} ou \texttt{fork core(id) \{ ... \}}: realiza a alocação determinística da subtarefa a um núcleo de CPU do processador local, isolando sua execução via afinidade de hardware (\textit{Core Affinity}).
+        \item \texttt{fork host(ip, porta) comando;}: despacha e agenda a tarefa para execução em um computador remoto via rede.
+    \end{itemize}
+    A primitiva complementar \texttt{join} implementa a barreira de sincronização e coleta de dados:
+    \begin{itemize}
+        \item \texttt{join;} : aguarda o término de todas as tarefas disparadas pelo pool local.
+        \item \texttt{join(t1, t2, ...);} : bloqueia a execução até que as tarefas indicadas concluam e disponibilizem seus resultados.
+    \end{itemize}
+
+    \item Comunicação por Mensagens via Canais (\texttt{c\_channel}):
+    A troca de dados entre processos independentes ocorre por passagem de mensagens utilizando canais sobre sockets TCP/IP:
+    \begin{itemize}
+        \item Declaração: \texttt{var canal = c\_channel("127.0.0.1", 5000);}
+        \item Envio: \texttt{send(canal, mensagem);}
+        \item Recepção: \texttt{var dado = receive(canal);}
+    \end{itemize}
+
+    \item Orientação a Objetos Plena:
+    Suporte completo a classes (\texttt{class}), herança simples (\texttt{extends}), instanciação explícita (\texttt{new}), referência à própria instância (\texttt{this}), construtores parametrizados e métodos com passagem de parâmetros.
+\end{enumerate}
+
+\section{Gramática Formal em Notação EBNF}
+
+A sintaxe formal completa do MiniPar 2026.2 é descrita na notação BNF Estendida (EBNF), na qual \texttt{\{ x \}} denota zero ou mais repetições, \texttt{[ x ]} denota elemento opcional e \texttt{"token"} representa símbolo terminal.
+
+\subsection{Estrutura Global do Programa}
+\begin{lstlisting}[language=bash, caption={Produções globais e declarações}]
+<programa> ::= { <declaracao> | <comando> }
+
+<declaracao> ::= <declaracao_classe>
+               | <declaracao_funcao>
+               | <declaracao_variavel>
+
+<declaracao_classe> ::= "class" <IDENTIFIER> [ "extends" <IDENTIFIER> ] "{" 
+                          { <membro_classe> } 
+                        "}"
+
+<membro_classe> ::= <declaracao_variavel>
+                  | <declaracao_funcao>
+
+<declaracao_funcao> ::= "func" <IDENTIFIER> "(" [ <lista_parametros> ] ")" <bloco_comandos>
+
+<lista_parametros> ::= <IDENTIFIER> { "," <IDENTIFIER> }
+
+<declaracao_variavel> ::= ( "var" | <tipo> ) <IDENTIFIER> [ "=" <expressao> ] ";"
+\end{lstlisting}
+
+\subsection{Comandos e Estruturas de Controle}
+\begin{lstlisting}[language=bash, caption={Produções de comandos e controle de fluxo}]
+<comando> ::= <bloco_comandos>
+            | <bloco_seq>
+            | <bloco_par>
+            | <comando_fork>
+            | <comando_join>
+            | <comando_if>
+            | <comando_while>
+            | <comando_do_while>
+            | <comando_for>
+            | <comando_print>
+            | <comando_send>
+            | <comando_return>
+            | <comando_break>
+            | <comando_continue>
+            | <atribuicao> ";"
+            | <chamada_metodo> ";"
+            | <chamada_funcao> ";"
+
+<bloco_comandos> ::= "{" { <comando> } "}"
+<bloco_seq>      ::= "seq" "{" { <comando> } "}"
+<bloco_par>      ::= "par" "{" { <comando> } "}"
+
+<comando_fork>   ::= "fork" <destino> ( <bloco_comandos> | <expressao> ";" )
+<destino>        ::= "core" "(" <expressao> ")" 
+                   | "host" "(" <expressao> [ "," <expressao> ] ")"
+
+<comando_join>   ::= "join" [ "(" [ <lista_expressoes> ] ")" ] ";"
+
+<comando_if>     ::= "if" "(" <expressao> ")" <comando> [ "else" <comando> ]
+
+<comando_while>  ::= "while" "(" <expressao> ")" <comando>
+
+<comando_do_while> ::= "do" <comando> "while" "(" <expressao> ")" ";"
+
+<comando_for>    ::= "for" "(" ( <for_tradicional> | <for_in> ) ")" <comando>
+<for_tradicional> ::= [ <declaracao_variavel> | <atribuicao> ] ";" 
+                      [ <expressao> ] ";" 
+                      [ <atribuicao> | <expressao> ]
+<for_in>          ::= "var" <IDENTIFIER> "in" <expressao>
+
+<comando_print>  ::= "print" "(" [ <lista_expressoes> ] ")" ";"
+<comando_send>   ::= "send" "(" <expressao> "," <expressao> ")" ";"
+<comando_return> ::= "return" [ <expressao> ] ";"
+<comando_break>  ::= "break" ";"
+<comando_continue> ::= "continue" ";"
+\end{lstlisting}
+
+\subsection{Expressões e Precedência de Operadores}
+\begin{lstlisting}[language=bash, caption={Hierarquia sintática de expressões}]
+<expressao> ::= <expressao_logica_ou>
+
+<expressao_logica_ou> ::= <expressao_logica_e> { "||" <expressao_logica_e> }
+
+<expressao_logica_e>  ::= <expressao_igualdade> { "&&" <expressao_igualdade> }
+
+<expressao_igualdade> ::= <expressao_relacional> { ( "==" | "!=" ) <expressao_relacional> }
+
+<expressao_relacional> ::= <expressao_aditiva> { ( "<" | "<=" | ">" | ">=" ) <expressao_aditiva> }
+
+<expressao_aditiva>   ::= <expressao_multiplicativa> { ( "+" | "-" ) <expressao_multiplicativa> }
+
+<expressao_multiplicativa> ::= <expressao_unaria> { ( "*" | "/" | "%" ) <expressao_unaria> }
+
+<expressao_unaria>    ::= ( "-" | "!" ) <expressao_unaria> | <expressao_posfixa>
+
+<expressao_posfixa>   ::= <expressao_primaria> { 
+                            "." <IDENTIFIER> [ "(" [ <lista_expressoes> ] ")" ]
+                          | "[" <expressao> "]" 
+                        }
+
+<expressao_primaria>  ::= <NUMBER>
+                        | <STRING_LITERAL>
+                        | <BOOL_LITERAL>
+                        | <IDENTIFIER>
+                        | "this"
+                        | "new" <IDENTIFIER> "(" [ <lista_expressoes> ] ")"
+                        | "c_channel" "(" <expressao> "," <expressao> ")"
+                        | "receive" "(" <expressao> ")"
+                        | "input" "(" [ <expressao> ] ")"
+                        | "matrix" "(" <expressao> "," <expressao> "," <expressao> ")"
+                        | "[" [ <lista_expressoes> ] "]"
+                        | "(" <expressao> ")"
+                        | <comando_fork>
+                        | <comando_join>
+\end{lstlisting}

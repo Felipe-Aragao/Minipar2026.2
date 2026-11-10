@@ -1,0 +1,56 @@
+\chapter{INTRODUÇÃO}
+
+Este relatório técnico documenta a concepção, modelagem arquitetural, implementação e validação experimental do compilador para a linguagem MiniPar 2026.2, desenvolvido no âmbito da disciplina de Compiladores ministrada pelo Prof. Dr. Arturo Hernandez Dominguez no Instituto de Computação da Universidade Federal de Alagoas (UFAL).
+
+A linguagem MiniPar é uma linguagem educacional projetada para explorar conceitos avançados de compilação, orientação a objetos e execução concorrente e distribuída. O MiniPar 2026.2 adota um pipeline estático composto por análise léxica, análise sintática com geração de Árvore de Sintaxe Abstrata (AST), análise semântica com verificação de tipos e escopos, motor de otimização independente de máquina na AST, síntese de Código Intermediário de Três Endereços (TAC) e transpilação para C++ nativo (padrão ISO C++20), gerando binários executáveis (\texttt{.exe}) compilados pelo \texttt{g++} com a flag \texttt{-O3}.
+
+O compilador é fundamentado na versão anterior MiniPar 2026.1, sobre a qual foram adicionadas novas funcionalidades e componentes estruturais para atender integralmente às exigências da disciplina:
+
+\begin{itemize}
+    \item Arquitetura Baseada em Componentes (CBSE): desacoplamento de todas as etapas em componentes formais com interfaces abstratas no diretório \texttt{src/} (\texttt{componente\_lexico.py}, \texttt{componente\_sintatico.py}, \texttt{componente\_semantico.py}, \texttt{componente\_tabela\_simbolos.py}, \texttt{componente\_otimizador.py}, \texttt{componente\_tac.py} e \texttt{componente\_codegen.py});
+    \item Primitivas de Real Paralelismo (\texttt{fork} e \texttt{join}): expansão dos analisadores léxico, sintático, semântico e do gerador de TAC para divisão explícita de tarefas em núcleos locais (\texttt{core}) ou nós remotos (\texttt{host}), com barreira de sincronização;
+    \item Afinidade de Núcleos de Hardware e Runtime C++: chamadas nativas de sistema operacional em \texttt{src/cpp\_template.py} (\texttt{SetThreadAffinityMask} na API Win32 e \texttt{pthread\_setaffinity\_np} em POSIX/Linux) e pool assíncrono com \texttt{std::shared\_future};
+    \item Motor de Otimização no Backend: módulo \texttt{src/optimizer.py} para simplificações algébricas, dobra de constantes (\textit{constant folding}) e eliminação de código morto na AST;
+    \item Segunda Interface Web Didática: interface em \texttt{templates/didatico.html} com visualizador gráfico interativo da AST em SVG/D3.js, controles individuais para cada fase da compilação e suporte a entradas pré-digitadas no console;
+    \item Suíte e Orquestrador dos 11 Testes Oficiais: validação dos 11 programas oficiais da disciplina, cobrindo cálculo de Speedup com multiprocessamento, renderização de fractais (Mandelbrot e Tapete de Sierpinski em BMP) e um mini-compilador com emissão de Assembly ARMv7 no Teste 11.
+\end{itemize}
+
+\section{Objetivos do Projeto}
+
+O trabalho cumpre os requisitos da especificação oficial do projeto MiniPar 2026.2, assegurando:
+\begin{enumerate}
+    \item Corretude e Confiabilidade: compilação e execução estável dos 11 testes oficiais e aprovação total na suíte automatizada de testes;
+    \item Rigor de Engenharia de Software: modelagem formal da arquitetura em diagramas UML de Casos de Uso, Componentes de Software (interfaces fornecidas e requeridas), Classes Conceituais e Atividades/Fluxo;
+    \item Didática e Usabilidade: disponibilização de interfaces acessíveis tanto para desenvolvedores quanto para estudantes em aprendizado de compiladores.
+\end{enumerate}
+
+\section{Arquitetura Geral do Pipeline de Compilação}
+
+A Tabela \ref{tab:arquitetura_geral} resume a estrutura arquitetural dos módulos do sistema, detalhando suas responsabilidades, arquivos de implementação e interfaces associadas.
+
+\begin{table}[htbp]
+\centering
+\caption{Mapeamento da Arquitetura Geral do Compilador MiniPar 2026.2}
+\label{tab:arquitetura_geral}
+\small
+\begin{tabular}{p{3.2cm}p{3.8cm}p{2.8cm}p{5cm}}
+\toprule
+Componente & Arquivo de Implementação & Interface (CBSE) & Responsabilidade Principal \\
+\midrule
+Entrada CLI & \texttt{main.py} & CLI / Dispatcher & Ponto de entrada, orquestração de flags (\texttt{-O}) e seletor de modo interativo. \\
+Menu Terminal & \texttt{menu.py} & Console UI & Execução individual ou em lote dos 11 testes oficiais. \\
+Servidor Web Flask & \texttt{app.py} & Web REST API & Disponibiliza a IDE Desenvolvedor (\texttt{/ide}) e a Didática (\texttt{/}). \\
+Analisador Léxico & \texttt{src/lexer.py} & \texttt{ILexico} & Converte texto-fonte em tokens com linha e coluna, descartando comentários \texttt{\#}. \\
+Analisador Sintático & \texttt{src/parser.py} & \texttt{ISintatico} & Constrói a AST com nós orientados a objetos via descida recursiva. \\
+Nós da AST & \texttt{src/ast\_nodes.py} & Dataclasses & Modela nós sintáticos e oferece serialização JSON via \texttt{to\_dict()}. \\
+Tabela de Símbolos & \texttt{src/componente\_tabela\_simbolos.py} & \texttt{ITabelaSimbolos} & Controla a pilha de escopos, variáveis, atributos e métodos. \\
+Analisador Semântico & \texttt{src/semantic.py} & \texttt{ISemantico} & Validação estática de tipos, escopos, classes, herança e laços. \\
+Otimizador AST & \texttt{src/optimizer.py} & \texttt{IOtimizador} & Backend: dobra de constantes, simplificação algébrica e código morto na AST. \\
+Gerador de TAC & \texttt{src/tac.py} & \texttt{ITAC} & Síntese de código linear de 3 endereços com temporários e labels. \\
+Gerador de C++ & \texttt{src/codegen.py} & \texttt{ICodegen} & Transpila AST validada para C++20 nativo e invoca o \texttt{g++ -O3}. \\
+Runtime C++ & \texttt{src/cpp\_template.py} & Header nativo C++ & Threads, sockets TCP, afinidade de CPU e barreira de sincronização. \\
+Análise Web & \texttt{src/analise.py} & Engine Modular & Executa o pipeline passo a passo em memória para a interface didática. \\
+Orquestrador Multi-Terminal & \texttt{test\_orchestrator.py} & Sockets / JSON & Coordena terminais participantes em testes distribuídos. \\
+\bottomrule
+\end{tabular}
+\end{table}

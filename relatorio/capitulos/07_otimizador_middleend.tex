@@ -1,0 +1,54 @@
+\chapter{MOTOR DE OTIMIZAÇÃO NO BACKEND}
+
+Foi integrado ao compilador um Motor de Otimização Independente de Máquina, atuando no backend diretamente sobre a Árvore de Sintaxe Abstrata (AST) antes da geração de código.
+
+O módulo está implementado em \texttt{src/optimizer.py} e empacotado no componente \texttt{C\_Otimizador} (\texttt{src/componente\_otimizador.py}), obedecendo à interface \texttt{IOtimizador}.
+
+\section{Técnicas de Otimização Implementadas}
+
+A classe \texttt{ASTOptimizer} implementa transformações semânticas que preservam o comportamento observável do programa, reduzindo a profundidade da árvore sintática, eliminando nós supérfluos e computando valores constantes em tempo de compilação:
+
+\begin{enumerate}
+    \item Dobra de Constantes (\textit{Constant Folding}):
+    expressões aritméticas, lógicas e relacionais formadas exclusivamente por literais estáticos são avaliadas previamente pelo compilador, substituindo subárvores inteiras por um nó literal único:
+    \begin{itemize}
+        \item $2 + 3 \times 4 \;\Longrightarrow\; 14$
+        \item $\texttt{"Compiladores "} + \texttt{"2026.2"} \;\Longrightarrow\; \texttt{"Compiladores 2026.2"}$
+        \item $\texttt{true } \&\& \texttt{ false} \;\Longrightarrow\; \texttt{false}$
+    \end{itemize}
+
+    \item Eliminação de Código Morto (\textit{Dead Code Elimination}):
+    comandos e blocos inalcançáveis em tempo de execução são podados da AST:
+    \begin{itemize}
+        \item Blocos \texttt{if (false) \{ ... \} else \{ B \}} têm o teste condicional e o ramo principal descartados, retendo-se diretamente o ramo \texttt{B}.
+        \item Blocos \texttt{if (true) \{ A \} else \{ ... \}} são simplificados diretamente para o corpo \texttt{A}.
+        \item Enunciados subsequentes a instruções incondicionais de desvio (\texttt{return}, \texttt{break}, \texttt{continue}) no mesmo bloco sequencial são eliminados.
+    \end{itemize}
+
+    \item Simplificações Algébricas (\textit{Algebraic Identities}):
+    aplica propriedades matemáticas para simplificar termos envolvendo identidades:
+    \begin{itemize}
+        \item $x + 0 \;\Longrightarrow\; x \quad\text{e}\quad 0 + x \;\Longrightarrow\; x$
+        \item $x - 0 \;\Longrightarrow\; x$
+        \item $x \times 1 \;\Longrightarrow\; x \quad\text{e}\quad 1 \times x \;\Longrightarrow\; x$
+        \item $x \times 0 \;\Longrightarrow\; 0 \quad (\text{se } x \text{ for puro})$
+        \item $x / 1 \;\Longrightarrow\; x$
+    \end{itemize}
+\end{enumerate}
+
+\section{Garantia de Pureza e Ponto Fixo}
+
+Para garantir que a eliminação de expressões algébricas não descarte acidentalmente efeitos colaterais relevantes (como chamadas de função com I/O ou manipulação de variáveis globais), o otimizador inclui a verificação estática de pureza através do método \texttt{is\_pure(node)}. Uma subárvore só é considerada pura se contiver estritamente variáveis, constantes ou operadores sem efeitos secundários.
+
+As passadas de otimização são executadas em um laço de ponto fixo (\textit{fixed-point iteration}): a árvore continua sendo reprocessada recursivamente enquanto transformações forem geradas, até que o número de nós se estabilize ou o limite de segurança de iterações seja atingido.
+
+\section{Métricas e Ativação no Compilador}
+
+A otimização pode ser habilitada opcionalmente:
+\begin{itemize}
+    \item Linha de Comando (CLI): através da flag \texttt{-O} ou \texttt{--optimize}:
+    \begin{lstlisting}[language=bash]
+python main.py tests/oficiais/teste02_fatorial_fibonacci_par.minipar -O
+    \end{lstlisting}
+    \item Interface Web Didática: através do seletor \textit{"Otimizar AST"}, que exibe um relatório com o número de nós antes e depois da transformação, o percentual de redução obtido e o registro textual de todas as regras aplicadas.
+\end{itemize}

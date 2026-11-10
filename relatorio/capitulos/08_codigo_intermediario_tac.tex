@@ -1,0 +1,87 @@
+\chapter{GERAÇÃO DE CÓDIGO INTERMEDIÁRIO (TAC)}
+
+O Código Intermediário de Três Endereços (\textit{Three-Address Code} -- TAC) é a representação intermediária linear de baixo nível gerada a partir da Árvore de Sintaxe Abstrata (AST), aproximando a semântica da linguagem MiniPar das linguagens de montagem (Assembly) e facilitando fases posteriores de análise e emissão de código de máquina.
+
+No compilador MiniPar 2026.2, o gerador de TAC está implementado em \texttt{src/tac.py} e encapsulado no componente \texttt{C\_TAC} (\texttt{src/componente\_tac.py}), satisfazendo aos contratos da interface \texttt{ITAC}.
+
+\section{Estrutura do TAC e Linearização de Controle}
+
+Cada instrução de três endereços possui, no máximo, um operador no lado direito e até três operandos (dois de entrada e um de destino):
+\begin{itemize}
+    \item Registradores Temporários: expressões complexas são decompostas recursivamente por meio da alocação de variáveis temporárias com prefixo \texttt{t} (\texttt{t0}, \texttt{t1}, \texttt{t2}, \dots).
+    \item Rótulos e Saltos de Fluxo: estruturas de controle e laços (\texttt{if}, \texttt{while}, \texttt{for}) são linearizadas em desvios condicionais (\texttt{ifFalse cond goto LABEL}) e incondicionais (\texttt{goto LABEL}).
+    \item Mapeamento de Paralelismo (\texttt{fork} e \texttt{join}):
+    a emissão de TAC suporta as diretivas de paralelismo:
+    \begin{lstlisting}[language=bash]
+t0 = FORK FORK_START_0, core 2
+goto ENDFORK_1
+FORK_START_0:
+# Corpo da subtarefa alocada ao nucleo 2
+...
+ENDFORK_1:
+JOIN t0
+    \end{lstlisting}
+\end{itemize}
+
+\section{Validação Formal do TAC no Teste 7 (Quicksort Iterativo)}
+
+A especificação oficial do projeto estabelece a validação formal do TAC gerado para o algoritmo de Quicksort Iterativo Não-Recursivo com pilha explícita.
+
+No algoritmo, o particionamento in-place e a pilha de limites de subvetores utilizam explicitamente um vetor manual \texttt{S} e um ponteiro de topo \texttt{sp}. O Listing \ref{lst:tac_quicksort} apresenta o trecho do TAC gerado pelo componente \texttt{C\_TAC} para o Teste 7:
+
+\begin{lstlisting}[language=bash, caption={Código Intermediário (TAC) gerado para o Quicksort Iterativo (Teste 7)}, label={lst:tac_quicksort}]
+t0 = 0
+t1 = 4
+S[0] = t0
+S[1] = t1
+sp = 2
+
+LOOP:
+if sp == 0 goto END
+sp = sp - 1
+t2 = S[sp]
+sp = sp - 1
+t3 = S[sp]
+if t3 >= t2 goto LOOP
+
+t4 = A[t2]
+t5 = t3 - 1
+t6 = t3
+
+PARTITION_LOOP:
+if t6 >= t2 goto PARTITION_END
+t7 = A[t6]
+if t7 <= t4 goto SWAP
+t6 = t6 + 1
+goto PARTITION_LOOP
+
+SWAP:
+t5 = t5 + 1
+t8 = A[t5]
+A[t5] = A[t6]
+A[t6] = t8
+t6 = t6 + 1
+goto PARTITION_LOOP
+
+PARTITION_END:
+t5 = t5 + 1
+t9 = A[t5]
+A[t5] = A[t2]
+A[t2] = t9
+
+t10 = t5 - 1
+S[sp] = t3
+sp = sp + 1
+S[sp] = t10
+sp = sp + 1
+
+t11 = t5 + 1
+S[sp] = t11
+sp = sp + 1
+S[sp] = t2
+sp = sp + 1
+goto LOOP
+
+END:
+# Array A[0..4] devidamente ordenado
+\end{lstlisting}

@@ -1,0 +1,154 @@
+\chapter{ANALISADOR LÉXICO (LEXER)}
+
+O Analisador Léxico (\textit{Lexer}) é o primeiro estágio do front-end do compilador MiniPar 2026.2, implementado no arquivo \texttt{src/lexer.py} e encapsulado no componente \texttt{C\_Lexico} que realiza a interface \texttt{ILexico}.
+
+Sua responsabilidade é varrer sequencialmente o fluxo de caracteres do código-fonte e convertê-lo em uma lista linear de objetos estruturados da classe \texttt{Token}, na qual cada token carrega seu tipo categórico (\texttt{TokenType}), o lexema correspondente em texto, o número da linha de ocorrência e a coluna exata.
+
+\section{Tratamento de Comentários, Delimitadores e Literais}
+
+O analisador léxico incorpora regras robustas para garantir que construções complexas sejam extraídas sem ambiguidades:
+\begin{itemize}
+    \item Filtragem de Comentários (\texttt{\#}): ao encontrar o caractere cerquilha (\texttt{\#}) fora de literais de texto, o analisador consome todos os caracteres até a quebra de linha (\texttt{\textbackslash n}) ou o fim do arquivo. Isso assegura que anotações e comentários não interfiram nas fases sintáticas posteriores.
+    \item Rastreamento Espacial: o contador de linha inicia em 1 e é incrementado a cada \texttt{\textbackslash n}. A coluna é atualizada a cada caractere lido e reiniciada após quebras de linha.
+    \item Literais Numéricos e Ponto Flutuante: reconhece inteiros (\texttt{42}) e números decimais (\texttt{3.14159}), consumindo sequências de dígitos separadas por ponto.
+    \item Literais de Texto e Escapes: delimitados por aspas duplas (\texttt{"..."}), com suporte a sequências de escape padrão (\texttt{\textbackslash n}, \texttt{\textbackslash t}, \texttt{\textbackslash "} e \texttt{\textbackslash\textbackslash}). O não fechamento das aspas dispara \texttt{LexError} com linha e coluna.
+    \item Operadores Compostos: utiliza \textit{lookahead} de um caractere para diferenciar operadores simples de relacionais e lógicos compostos (\texttt{==}, \texttt{!=}, \texttt{<=}, \texttt{>=}, \texttt{\&\&} e \texttt{||}).
+\end{itemize}
+
+A Tabela \ref{tab:tokens_lexicos} resume as categorias de tokens reconhecidas pelo compilador.
+
+\begin{table}[htbp]
+\centering
+\caption{Categorias e Exemplos de Tokens no MiniPar 2026.2}
+\label{tab:tokens_lexicos}
+\small
+\begin{tabular}{p{3.5cm}p{11cm}}
+\toprule
+Categoria & Tokens Principais \\
+\midrule
+Palavras Reservadas & \texttt{class}, \texttt{extends}, \texttt{new}, \texttt{func}, \texttt{var}, \texttt{if}, \texttt{else}, \texttt{while}, \texttt{do}, \texttt{for}, \texttt{in}, \texttt{break}, \texttt{continue}, \texttt{return}, \texttt{seq}, \texttt{par}, \texttt{fork}, \texttt{join}, \texttt{core}, \texttt{host}, \texttt{this}, \texttt{c\_channel}, \texttt{send}, \texttt{receive}, \texttt{input}, \texttt{print}, \texttt{matrix} \\
+Tipos Nativos & \texttt{number}, \texttt{int}, \texttt{string}, \texttt{bool}, \texttt{void}, \texttt{list}, \texttt{dict}, \texttt{task} \\
+Literais & \texttt{NUMBER}, \texttt{STRING\_LITERAL}, \texttt{BOOL\_LITERAL} (\texttt{true}, \texttt{false}), \texttt{IDENTIFIER} \\
+Operadores & \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{\%}, \texttt{=}, \texttt{==}, \texttt{!=}, \texttt{!}, \texttt{\&\&}, \texttt{||}, \texttt{<}, \texttt{>}, \texttt{<=}, \texttt{>=} \\
+Delimitadores & \texttt{(}, \texttt{)}, \texttt{\{}, \texttt{\}}, \texttt{[}, \texttt{]}, \texttt{.}, \texttt{;}, \texttt{,} \\
+Especiais & \texttt{END\_OF\_FILE}, \texttt{UNKNOWN} (para caracteres não reconhecidos) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Pseudocódigo do Analisador Léxico}
+
+O Algoritmo \ref{algo:lexer} formaliza o procedimento de tokenização adotado pelo MiniPar 2026.2, atendendo expressamente ao Requisito 3 da especificação.
+
+\begin{lstlisting}[language=Python, caption={Pseudocódigo do Analisador Léxico (Lexer)}, label={algo:lexer}]
+ALGORITMO ANALISE_LEXICA(codigo_fonte):
+    posicao <- 0
+    linha <- 1
+    coluna <- 1
+    tokens <- Lista_Vazia()
+
+    ENQUANTO posicao < tamanho(codigo_fonte):
+        # 1. Pular espacos em branco e tabulacoes
+        ENQUANTO posicao < tamanho(codigo_fonte) E eh_espaco(codigo_fonte[posicao]):
+            SE codigo_fonte[posicao] == '\n':
+                linha <- linha + 1
+                coluna <- 1
+            SENAO:
+                coluna <- coluna + 1
+            posicao <- posicao + 1
+
+        # 2. Descarte de comentarios iniciados por '#'
+        SE posicao < tamanho(codigo_fonte) E codigo_fonte[posicao] == '#':
+            ENQUANTO posicao < tamanho(codigo_fonte) E codigo_fonte[posicao] != '\n':
+                posicao <- posicao + 1
+                coluna <- coluna + 1
+            CONTINUAR_PROXIMA_ITERACAO
+
+        SE posicao >= tamanho(codigo_fonte):
+            PARAR_LACO
+
+        inicio_linha <- linha
+        inicio_coluna <- coluna
+        caractere <- codigo_fonte[posicao]
+
+        # 3. Identificadores e Palavras Reservadas
+        SE eh_letra(caractere) OU caractere == '_':
+            lexema <- ""
+            ENQUANTO posicao < tamanho(codigo_fonte) E (eh_alfanumerico(codigo_fonte[posicao]) OU codigo_fonte[posicao] == '_'):
+                lexema <- lexema + codigo_fonte[posicao]
+                posicao <- posicao + 1
+                coluna <- coluna + 1
+            
+            tipo <- CONSULTAR_PALAVRAS_RESERVADAS(lexema)
+            SE tipo == NULO:
+                tipo <- TOKEN_IDENTIFICADOR
+            ADICIONAR_TOKEN(tokens, tipo, lexema, inicio_linha, inicio_coluna)
+
+        # 4. Numeros (Inteiros e Flutuantes)
+        SENAO SE eh_digito(caractere):
+            lexema <- ""
+            ENQUANTO posicao < tamanho(codigo_fonte) E eh_digito(codigo_fonte[posicao]):
+                lexema <- lexema + codigo_fonte[posicao]
+                posicao <- posicao + 1
+                coluna <- coluna + 1
+            
+            SE posicao < tamanho(codigo_fonte) E codigo_fonte[posicao] == '.':
+                lexema <- lexema + '.'
+                posicao <- posicao + 1
+                coluna <- coluna + 1
+                ENQUANTO posicao < tamanho(codigo_fonte) E eh_digito(codigo_fonte[posicao]):
+                    lexema <- lexema + codigo_fonte[posicao]
+                    posicao <- posicao + 1
+                    coluna <- coluna + 1
+            
+            ADICIONAR_TOKEN(tokens, TOKEN_NUMERO, lexema, inicio_linha, inicio_coluna)
+
+        # 5. Strings Literais e Caracteres de Escape
+        SENAO SE caractere == '"':
+            posicao <- posicao + 1  # Consome aspas de abertura
+            coluna <- coluna + 1
+            texto <- ""
+            ENQUANTO posicao < tamanho(codigo_fonte) E codigo_fonte[posicao] != '"':
+                SE codigo_fonte[posicao] == '\\':
+                    posicao <- posicao + 1
+                    coluna <- coluna + 1
+                    SE posicao >= tamanho(codigo_fonte):
+                        LANCAR_ERRO_LEXICO("String nao terminada", inicio_linha, inicio_coluna)
+                    escape_char <- codigo_fonte[posicao]
+                    texto <- texto + PROCESSAR_ESCAPE(escape_char)
+                SENAO:
+                    texto <- texto + codigo_fonte[posicao]
+                posicao <- posicao + 1
+                coluna <- coluna + 1
+            
+            SE posicao >= tamanho(codigo_fonte) OU codigo_fonte[posicao] != '"':
+                LANCAR_ERRO_LEXICO("String nao terminada", inicio_linha, inicio_coluna)
+            
+            posicao <- posicao + 1  # Consome aspas de fechamento
+            coluna <- coluna + 1
+            ADICIONAR_TOKEN(tokens, TOKEN_STRING, texto, inicio_linha, inicio_coluna)
+
+        # 6. Operadores Relacionais, Compostos e Delimitadores
+        SENAO:
+            simbolo <- AVANCAR_E_OBTER_CARACTERE()
+            SE simbolo == '=' E ESPIAR_PROXIMO() == '=':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_IGUALDADE, "==", inicio_linha, inicio_coluna)
+            SENAO SE simbolo == '!' E ESPIAR_PROXIMO() == '=':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_DIFERENTE, "!=", inicio_linha, inicio_coluna)
+            SENAO SE simbolo == '<' E ESPIAR_PROXIMO() == '=':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_MENOR_IGUAL, "<=", inicio_linha, inicio_coluna)
+            SENAO SE simbolo == '>' E ESPIAR_PROXIMO() == '=':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_MAIOR_IGUAL, ">=", inicio_linha, inicio_coluna)
+            SENAO SE simbolo == '&' E ESPIAR_PROXIMO() == '&':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_E_LOGICO, "&&", inicio_linha, inicio_coluna)
+            SENAO SE simbolo == '|' E ESPIAR_PROXIMO() == '|':
+                AVANCAR(); ADICIONAR_TOKEN(tokens, TOKEN_OU_LOGICO, "||", inicio_linha, inicio_coluna)
+            SENAO SE simbolo ESTA_NO_MAPA_SIMBOLOS_SIMPLES():
+                ADICIONAR_TOKEN(tokens, MAPA_SIMBOLOS[simbolo], simbolo, inicio_linha, inicio_coluna)
+            SENAO:
+                ADICIONAR_TOKEN(tokens, TOKEN_DESCONHECIDO, simbolo, inicio_linha, inicio_coluna)
+
+    ADICIONAR_TOKEN(tokens, TOKEN_FIM_ARQUIVO, "", linha, coluna)
+    RETORNAR tokens
+FIM_ALGORITMO
+\end{lstlisting}

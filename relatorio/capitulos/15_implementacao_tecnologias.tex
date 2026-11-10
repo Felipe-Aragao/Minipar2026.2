@@ -1,0 +1,57 @@
+\chapter{IMPLEMENTAÇÃO E AMBIENTE DE DESENVOLVIMENTO}
+
+A implementação do compilador MiniPar 2026.2 foi conduzida priorizando modularidade, desempenho e clareza didática, combinando a flexibilidade do ecossistema Python com o poder computacional de baixo nível do C++20.
+
+\section{Tecnologias Utilizadas e Ambiente}
+
+A Tabela \ref{tab:tecnologias} sumariza o conjunto de ferramentas, linguagens e frameworks empregados no projeto.
+
+\begin{table}[htbp]
+\centering
+\caption{Tecnologias Empregadas na Construção do Compilador}
+\label{tab:tecnologias}
+\small
+\begin{tabular}{p{3.2cm}p{3cm}p{7.5cm}}
+\toprule
+Tecnologia & Versão Utilizada & Finalidade no Projeto \\
+\midrule
+Python & 3.10 / 3.14 & Implementação do front-end, backend com otimizador, CLI, menu e servidor Web. \\
+C++ & Padrão ISO C++20 & Linguagem-alvo transpilada com suporte nativo a threads e sockets. \\
+GCC / MinGW & g++ 13+ & Compilação do código C++ gerado com flag de otimização \texttt{-O3}. \\
+Flask & 3.0.0 & Servidor HTTP e API REST das duas interfaces Web. \\
+D3.js & v7 (local) & Renderização gráfica vetorial interativa da Árvore Sintática (AST). \\
+CodeMirror & v5 (local) & Editor de código no navegador com realce de sintaxe. \\
+Pytest & 8.4.2 & Execução da suíte automatizada de testes de integração (117 casos). \\
+Git / GitHub & 2.40+ & Controle de versão distribuído e colaboração da equipe. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Comentários Explicativos no Código-Fonte}
+Conforme exigido na especificação, todo o código-fonte do compilador foi amplamente documentado. Em arquivos como \texttt{src/lexer.py}, \texttt{src/parser.py}, \texttt{src/semantic.py} e \texttt{src/optimizer.py}, cada método possui \textit{docstrings} formais e anotações explicativas em português, detalhando as regras gramaticais da BNF atendidas, os critérios de inferência de tipos e as otimizações aplicadas.
+
+\section{Passo a Passo da Execução dos Programas de Teste}
+
+O fluxo de compilação e execução segue uma esteira intuitiva, reproduzida tanto no terminal quanto na interface Web didática:
+
+\begin{enumerate}
+    \item Seleção do Código-Fonte: o usuário seleciona um dos programas de teste disponíveis ou digita o código no editor.
+    \item Análise por Fases Didáticas: ao acionar o botão de análise, o backend executa o pipeline em memória, exibindo as tabelas de \textit{Tokens}, a \textit{Árvore Sintática AST} em D3.js, o diagnóstico \textit{Semântico} e a \textit{Tabela de Símbolos}.
+    \item Inspeção de TAC e C++: o usuário pode alternar entre as abas para inspecionar o código intermediário linear e o código-fonte C++20 gerado.
+    \item Compilação Nativa e Execução: o usuário insere os valores de entrada no console e aciona \textit{Executar}. O compilador invoca o \texttt{g++ -O3}, gera o binário executável e exibe a saída.
+\end{enumerate}
+
+\begin{figure}[htbp]
+    \centering
+    \framebox[\textwidth][c]{%
+        \parbox{0.9\textwidth}{%
+            \centering\vspace{1.5cm}
+            \textcolor{red}{<Inserir prints do passo a passo das telas da execução dos testes na interface Web Didática>}\\
+            \vspace{0.2cm}
+            \textit{\small Nota: Capturar telas ilustrando: (a) Seleção do teste; (b) Inspeção da árvore AST; (c) Painel de execução com os resultados no console.}
+            \vspace{1.5cm}
+        }
+    }
+    \caption{Passo a Passo da Execução dos Programas de Teste na Interface Web Didática}
+    \label{fig:passo_a_passo_web}
+\end{figure}

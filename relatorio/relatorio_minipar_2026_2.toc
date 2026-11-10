@@ -1,0 +1,96 @@
+\changetocdepth {4}
+\babel@toc {brazil}{}\relax 
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {1}\MakeTextUppercase []{INTRODUÇÃO}}{4}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Objetivos do Projeto}{5}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Arquitetura Geral do Pipeline de Compilação}{5}{section.1.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {2}\MakeTextUppercase []{A LINGUAGEM MINIPAR 2026.2 E GRAMÁTICA BNF}}{7}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Características Fundamentais e Novos Paradigmas}{7}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Gramática Formal em Notação EBNF}{8}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Estrutura Global do Programa}{8}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Comandos e Estruturas de Controle}{8}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Expressões e Precedência de Operadores}{9}{subsection.2.2.3}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {3}\MakeTextUppercase []{ANALISADOR LÉXICO (LEXER)}}{11}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Tratamento de Comentários, Delimitadores e Literais}{11}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Pseudocódigo do Analisador Léxico}{11}{section.3.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {4}\MakeTextUppercase []{ANALISADOR SINTÁTICO (PARSER)}}{15}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Método de Descida Recursiva e Precedência por Camadas}{15}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Tratamento dos Construtos \texttt {fork} e \texttt {join}}{15}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Pseudocódigo do Analisador Sintático}{16}{section.4.3}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {5}\MakeTextUppercase []{ANALISADOR SEMÂNTICO E TRATAMENTO DE ERROS}}{19}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Estratégia de Duas Passagens (\textit {Two-Pass Analysis})}{19}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Tratamento de Comentários (\texttt {\#}) e Diagnósticos de Erros}{19}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Pseudocódigo do Analisador Semântico}{20}{section.5.3}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {6}\MakeTextUppercase []{TABELA DE SÍMBOLOS}}{23}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Estrutura de Dados e Pilha de Escopos Léxicos}{23}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Pseudocódigo da Tabela de Símbolos}{24}{section.6.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {7}\MakeTextUppercase []{MOTOR DE OTIMIZAÇÃO NO BACKEND}}{26}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Técnicas de Otimização Implementadas}{26}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Garantia de Pureza e Ponto Fixo}{27}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Métricas e Ativação no Compilador}{27}{section.7.3}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {8}\MakeTextUppercase []{GERAÇÃO DE CÓDIGO INTERMEDIÁRIO (TAC)}}{28}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Estrutura do TAC e Linearização de Controle}{28}{section.8.1}%
+\contentsline {section}{\numberline {8.2}Validação Formal do TAC no Teste 7 (Quicksort Iterativo)}{28}{section.8.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {9}\MakeTextUppercase []{GERAÇÃO DE CÓDIGO C++20 E RUNTIME NATIVA}}{31}{chapter.9}%
+\contentsline {section}{\numberline {9.1}Transpilação da AST para C++20}{31}{section.9.1}%
+\contentsline {section}{\numberline {9.2}Runtime Nativa e Afinidade de Núcleos (\textit {Core Affinity})}{32}{section.9.2}%
+\contentsline {subsection}{\numberline {9.2.1}Isolamento de Núcleos de CPU (Afinidade de Hardware)}{32}{subsection.9.2.1}%
+\contentsline {subsection}{\numberline {9.2.2}Pool de Tarefas e Barreiras Assíncronas}{32}{subsection.9.2.2}%
+\contentsline {subsection}{\numberline {9.2.3}Comunicação TCP com Resiliência}{32}{subsection.9.2.3}%
+\contentsline {section}{\numberline {9.3}Orquestração e Compilação Nativa via \texttt {g++}}{33}{section.9.3}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {10}\MakeTextUppercase []{INTERFACES DO COMPILADOR (3 MODALIDADES)}}{34}{chapter.10}%
+\contentsline {section}{\numberline {10.1}Modalidade 1: Interface de Linha de Comando (CLI) e Menu Terminal}{34}{section.10.1}%
+\contentsline {section}{\numberline {10.2}Modalidade 2: Primeira Interface Web (Desenvolvedor)}{34}{section.10.2}%
+\contentsline {section}{\numberline {10.3}Modalidade 3: Segunda Interface Web (Didática / Educacional)}{35}{section.10.3}%
+\contentsline {subsection}{\numberline {10.3.1}Inspiração Visual e Filosofia de Design}{35}{subsection.10.3.1}%
+\contentsline {subsection}{\numberline {10.3.2}Controles Didáticos Passo a Passo (Botões de Fase)}{35}{subsection.10.3.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {11}\MakeTextUppercase []{GERÊNCIA DE PROJETO ÁGIL (PRODUCT E SPRINTS BACKLOG)}}{37}{chapter.11}%
+\contentsline {section}{\numberline {11.1}Product Backlog}{37}{section.11.1}%
+\contentsline {section}{\numberline {11.2}Sprints Backlog}{37}{section.11.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {12}\MakeTextUppercase []{MODELAGEM UML BASEADA EM COMPONENTES DE SOFTWARE (CBSE)}}{40}{chapter.12}%
+\contentsline {section}{\numberline {12.1}Diagrama de Casos de Uso}{40}{section.12.1}%
+\contentsline {section}{\numberline {12.2}Arquitetura de Componentes de Software}{40}{section.12.2}%
+\contentsline {section}{\numberline {12.3}Modelagem via Diagrama de Classes Conceitual}{42}{section.12.3}%
+\contentsline {section}{\numberline {12.4}Diagrama de Atividades / Fluxo de Compilação}{42}{section.12.4}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {13}\MakeTextUppercase []{TESTES DE INTEGRAÇÃO DE COMPONENTES DE SOFTWARE}}{44}{chapter.13}%
+\contentsline {section}{\numberline {13.1}Matriz de Integração dos Componentes}{44}{section.13.1}%
+\contentsline {section}{\numberline {13.2}Resultados da Suíte Automatizada de Testes (Pytest)}{44}{section.13.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {14}\MakeTextUppercase []{BATERIA OFICIAL DOS 11 PROGRAMAS DE TESTE}}{46}{chapter.14}%
+\contentsline {section}{\numberline {14.1}Teste 1: Calculadora Cliente-Servidor com Sockets TCP}{46}{section.14.1}%
+\contentsline {section}{\numberline {14.2}Teste 2: Paralelismo Concorrente (Fatorial e Fibonacci)}{46}{section.14.2}%
+\contentsline {section}{\numberline {14.3}Teste 3: Neurônio Perceptron com Orientação a Objetos}{47}{section.14.3}%
+\contentsline {section}{\numberline {14.4}Teste 4: Rede Neural MLP (Problema XOR)}{47}{section.14.4}%
+\contentsline {section}{\numberline {14.5}Teste 5: Sistema de Recomendação de E-commerce}{48}{section.14.5}%
+\contentsline {section}{\numberline {14.6}Teste 6: Quicksort Recursivo com POO}{48}{section.14.6}%
+\contentsline {section}{\numberline {14.7}Teste 7: Quicksort Iterativo com Pilha Explícita e Validação de TAC}{49}{section.14.7}%
+\contentsline {section}{\numberline {14.8}Teste 8: Avaliação Paralela em 4 Núcleos de CPU (Speedup)}{50}{section.14.8}%
+\contentsline {section}{\numberline {14.9}Teste 9: 5 Núcleos (Avaliação Paralela + Fractal Mandelbrot ASCII)}{50}{section.14.9}%
+\contentsline {section}{\numberline {14.10}Teste 10: 6 Núcleos (Avaliação + Mandelbrot + Tapete de Sierpinski)}{51}{section.14.10}%
+\contentsline {section}{\numberline {14.11}Teste 11: Tokenizador, Avaliador e Mini-Compilador Assembly ARMv7}{52}{section.14.11}%
+\contentsline {section}{\numberline {14.12}Tabela Resumo dos Estados dos Testes}{52}{section.14.12}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {15}\MakeTextUppercase []{IMPLEMENTAÇÃO E AMBIENTE DE DESENVOLVIMENTO}}{53}{chapter.15}%
+\contentsline {section}{\numberline {15.1}Tecnologias Utilizadas e Ambiente}{53}{section.15.1}%
+\contentsline {subsection}{\numberline {15.1.1}Comentários Explicativos no Código-Fonte}{53}{subsection.15.1.1}%
+\contentsline {section}{\numberline {15.2}Passo a Passo da Execução dos Programas de Teste}{53}{section.15.2}%
+\setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
+\contentsline {chapter}{\chapternumberline {16}\MakeTextUppercase []{CONCLUSÃO}}{55}{chapter.16}%
+\vspace {\cftbeforechapterskip }
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\contentsline {chapter}{LINKS ÚTEIS}{56}{chapter*.4}%
+\setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
+\contentsline {chapter}{\MakeTextUppercase []{Refer\^encias}}{57}{section*.7}%

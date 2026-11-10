@@ -1,0 +1,80 @@
+\chapter{GERÊNCIA DE PROJETO ÁGIL (PRODUCT E SPRINTS BACKLOG)}
+
+O desenvolvimento do compilador MiniPar 2026.2 foi orientado pelo framework ágil Scrum, estruturado em entregas incrementais contínuas (\textit{sprints}) com rastreabilidade formal entre histórias de usuário, requisitos técnicos da disciplina e tarefas de implementação.
+
+\section{Product Backlog}
+
+O Product Backlog consolidado foi definido a partir do mapeamento direto entre as exigências especificadas para o compilador e as funcionalidades efetivamente implementadas pela equipe. A Tabela \ref{tab:product_backlog} documenta os itens priorizados, correlacionando o que foi solicitado com a solução técnica entregue.
+
+\begin{table}[htbp]
+\centering
+\caption{Product Backlog do Compilador MiniPar 2026.2}
+\label{tab:product_backlog}
+\small
+\begin{tabular}{p{1.2cm}p{9.4cm}p{1.8cm}p{1.8cm}}
+\toprule
+Item & Descrição (Especificado vs. Implementado) & Prioridade & Status \\
+\midrule
+PB01 & Especificação: gramática para real paralelismo com \texttt{fork} e \texttt{join}. Implementação: extensão da EBNF, novos tokens e nós na AST. & Alta & Concluído \\
+PB02 & Especificação: arquitetura por componentes de software (CBSE). Implementação: desacoplamento nos 7 componentes com interfaces formais. & Alta & Concluído \\
+PB03 & Especificação: controle de escopos e tipos concorrentes. Implementação: Tabela de Símbolos em pilha, tipo \texttt{task} e validação de laços. & Alta & Concluído \\
+PB04 & Especificação: suporte a afinidade de núcleos de hardware. Implementação: chamadas Win32/POSIX e pool assíncrono thread-safe na runtime C++. & Alta & Concluído \\
+PB05 & Especificação: canais de comunicação por mensagens. Implementação: classe \texttt{MiniParChannel} com sockets TCP/IP resilientes no Windows. & Alta & Concluído \\
+PB06 & Especificação: emissão de TAC com temporários e validação formal. Implementação: linearização em \texttt{tac.py} e validação exata do Teste 7. & Alta & Concluído \\
+PB07 & Especificação: algoritmos de multiprocessamento com Speedup e fractais. Implementação: execução aprovada dos Testes 8, 9 e 10 com BMP. & Alta & Concluído \\
+PB08 & Especificação: Segunda Interface Web didática estilo IFSC. Implementação: aplicação Web didática com AST interativa em D3.js e botões por fase. & Alta & Concluído \\
+PB09 & Especificação: preservação das interfaces herdadas. Implementação: manutenção da CLI direta, menu de testes e rota de desenvolvedor (\texttt{/ide}). & Média & Concluído \\
+PB10 & Especificação: coordenação de múltiplos terminais em testes. Implementação: módulo \texttt{test\_orchestrator.py} com sessões compartilhadas. & Média & Concluído \\
+PB11 & Especificação: minicompilador de expressões aritméticas com ARMv7. Implementação: Teste 11 em MiniPar com gravação em disco de Assembly ARMv7. & Alta & Concluído \\
+PB12 & Especificação: otimização estática independente na AST. Implementação: motor no backend com dobra de constantes e eliminação de código morto. & Média & Concluído \\
+PB13 & Especificação: controle opcional de otimização na CLI e Web. Implementação: flag \texttt{-O} no compilador e opção de otimização na interface didática. & Média & Concluído \\
+PB14 & Especificação: garantia de qualidade e conformidade UML. Implementação: suíte com 117 testes no pytest (100\% de aprovação) e diagramas UML. & Alta & Concluído \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Sprints Backlog}
+
+O planejamento das atividades foi estruturado em seis \textit{sprints} incrementais de desenvolvimento, organizando os itens do Product Backlog em metas técnicas bem delimitadas, conforme apresentado na Tabela \ref{tab:sprints_backlog}.
+
+\begin{table}[htbp]
+\centering
+\caption{Sprints Backlog do Compilador MiniPar 2026.2}
+\label{tab:sprints_backlog}
+\small
+\begin{tabular}{p{1.8cm}p{1.0cm}p{9.4cm}p{1.8cm}}
+\toprule
+Sprint & ID & Descrição Técnica da Tarefa & Ref. PB \\
+\midrule
+Sprint 1 & 1.1 & Extensão da gramática BNF e adição dos tokens \texttt{FORK}, \texttt{JOIN}, \texttt{CORE} e \texttt{HOST}. & PB01 \\
+         & 1.2 & Modelagem dos nós \texttt{ForkStmt}, \texttt{JoinStmt} e \texttt{Destino} na AST. & PB01 \\
+         & 1.3 & Implementação inicial de afinidade de CPU e template de suporte C++. & PB04 \\
+         & 1.4 & Transpilação preliminar de comandos \texttt{fork} e \texttt{join} para C++ e TAC. & PB01, PB06 \\
+\midrule
+Sprint 2 & 2.1 & Desacoplamento da arquitetura nos componentes CBSE (\texttt{ILexico}, \texttt{ISintatico}, etc.). & PB02 \\
+         & 2.2 & Extração e desacoplamento do componente de Tabela de Símbolos. & PB02, PB03 \\
+         & 2.3 & Isolamento de escopo concorrente com \texttt{thread\_local} e captura em blocos paralelos. & PB03, PB04 \\
+         & 2.4 & Implementação de pool de tarefas thread-safe com barreira de sincronização. & PB04 \\
+\midrule
+Sprint 3 & 3.1 & Implementação e validação do Teste 8 (160 avaliações com Speedup em 4 núcleos). & PB07 \\
+         & 3.2 & Implementação do Teste 9 (avaliação paralela e renderização de Mandelbrot ASCII). & PB07 \\
+         & 3.3 & Implementação do Teste 10 (multiprocessamento em 6 núcleos com Sierpinski em BMP). & PB07 \\
+         & 3.4 & Validação formal do código intermediário (TAC) do Quicksort Iterativo (Teste 7). & PB06 \\
+\midrule
+Sprint 4 & 4.1 & Desenvolvimento da interface Web didática com árvore sintática em SVG/D3.js. & PB08 \\
+         & 4.2 & Integração dos botões de controle de compilação passo a passo e rotas Flask. & PB08, PB09 \\
+         & 4.3 & Resiliência a reconexões de sockets TCP/IP no Windows para canais \texttt{c\_channel}. & PB05 \\
+         & 4.4 & Implementação do orquestrador multi-terminal e isolamento dos 11 testes oficiais. & PB09, PB10 \\
+\midrule
+Sprint 5 & 5.1 & Desenvolvimento do minicompilador de expressões aritméticas no Teste 11. & PB11 \\
+         & 5.2 & Adição da função nativa de gravação em disco (\texttt{write\_file}) na runtime C++. & PB11 \\
+         & 5.3 & Síntese e gravação de código Assembly ARMv7 validado no simulador CPULator. & PB11 \\
+         & 5.4 & Integração do Teste 11 no executor automatizado de testes de regressão. & PB11, PB14 \\
+\midrule
+Sprint 6 & 6.1 & Criação da interface \texttt{IOtimizador} e componente \texttt{C\_Otimizador} no backend. & PB12 \\
+         & 6.2 & Implementação de dobra de constantes, identidades algébricas e código morto. & PB12 \\
+         & 6.3 & Integração da flag \texttt{-O} na CLI e opções de otimização na interface Web. & PB13 \\
+         & 6.4 & Execução da suíte de 117 testes automatizados no pytest e documentação UML. & PB14 \\
+\bottomrule
+\end{tabular}
+\end{table}

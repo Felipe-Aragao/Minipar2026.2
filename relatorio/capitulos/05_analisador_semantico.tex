@@ -1,0 +1,137 @@
+\chapter{ANALISADOR SEMÂNTICO E TRATAMENTO DE ERROS}
+
+O Analisador Semântico do compilador MiniPar 2026.2, implementado em \texttt{src/semantic.py} e operado através do componente \texttt{C\_Semantico} (interface \texttt{ISemantico}), é encarregado de verificar a consistência lógica, estrutural e tipológica da Árvore de Sintaxe Abstrata gerada pelo Parser.
+
+\section{Estratégia de Duas Passagens (\textit{Two-Pass Analysis})}
+
+Para permitir que funções e classes sejam utilizadas no código-fonte antes de suas declarações textuais (referência antecipada ou \textit{forward declaration}), o analisador adota um modelo de validação em duas etapas:
+\begin{enumerate}
+    \item Primeira Passagem (Coleta de Declarações): percorre a lista de comandos do nó raiz \texttt{Program} e registra todas as definições globais de classes (com métodos e atributos) e funções (com parâmetros formais) na Tabela de Símbolos. Caso haja duplicação de identificadores no mesmo escopo, um erro semântico é reportado.
+    \item Segunda Passagem (Validação e Inferência de Tipos): inspeciona cada nó de comando e expressão, validando:
+    \begin{itemize}
+        \item Existência e visibilidade de variáveis acessadas em seus respectivos escopos;
+        \item Compatibilidade estática e coerência em atribuições e operações binárias/unárias;
+        \item Conformidade da quantidade de argumentos em chamadas de funções e métodos;
+        \item Validação de contexto de fluxo: controle da profundidade de laços (\texttt{loop\_depth}), impedindo o uso indevido de \texttt{break} ou \texttt{continue} fora de blocos de repetição;
+        \item Uso de \texttt{this} restrito ao escopo interno de métodos de classes;
+        \item Tipagem de primitivas concorrentes (\texttt{fork} gera o tipo de tarefa \texttt{task}, e canais \texttt{c\_channel} operam com strings/números).
+    \end{itemize}
+\end{enumerate}
+
+\section{Tratamento de Comentários (\texttt{\#}) e Diagnósticos de Erros}
+
+O Requisito 5 especifica que o compilador deve permitir comentários via \texttt{\#}:
+\begin{itemize}
+    \item Os comentários são descartados na análise léxica, mantendo os contadores de linha e coluna perfeitamente sincronizados.
+    \item Quando o Analisador Semântico detecta uma inconformidade (por exemplo, uso de variável não declarada), ele reporta o erro identificando a linha original do código MiniPar, desconsiderando linhas de comentários.
+    \item A saída do erro é padronizada no formato:
+    \[ \texttt{[ERRO SEMANTICO] Linha L, Coluna C: Mensagem Explicativa} \]
+\end{itemize}
+
+\section{Pseudocódigo do Analisador Semântico}
+
+O Algoritmo \ref{algo:semantico} descreve a lógica e as rotinas de verificação do analisador semântico.
+
+\begin{lstlisting}[language=Python, caption={Pseudocódigo do Analisador Semântico e Tratamento de Erros}, label={algo:semantico}]
+CLASSE AnalisadorSemantico:
+    ATRIBUTOS:
+        tabela_simbolos: TabelaDeSimbolos
+        erros: Lista de Erros <- []
+        classes_declaradas: Mapa[Nome, MetadadosClasse]
+        funcoes_declaradas: Mapa[Nome, MetadadosFuncao]
+        profundidade_laco: Inteiro <- 0
+        classe_atual: Texto <- NULO
+
+    METODO reportar_erro(mensagem, linha, coluna):
+        # Permite identificar erros ignorando comentarios ('#') filtrados pelo Lexer
+        erro <- Novo Objeto Erro(fase="semantica", linha=linha, coluna=coluna, mensagem=mensagem)
+        erros.adicionar(erro)
+        IMPRIMIR("[ERRO SEMANTICO] Linha " + linha + ": " + mensagem)
+
+    METODO analisar(programa):
+        # Passagem 1: Coleta global de classes e funcoes
+        PARA CADA declaracao EM programa.comandos:
+            SE declaracao eh ClassDecl:
+                SE declaracao.nome JA_EXISTE EM classes_declaradas:
+                    reportar_erro("Classe '" + declaracao.nome + "' ja declarada", declaracao.linha)
+                classes_declaradas[declaracao.nome] <- declaracao
+            SENAO SE declaracao eh FuncDecl:
+                SE declaracao.nome JA_EXISTE EM funcoes_declaradas:
+                    reportar_erro("Funcao '" + declaracao.nome + "' ja declarada", declaracao.linha)
+                funcoes_declaradas[declaracao.nome] <- declaracao
+
+        # Passagem 2: Validacao de escopos e tipos
+        PARA CADA comando EM programa.comandos:
+            validar_no(comando)
+
+        RETORNAR (tamanho(erros) == 0)
+
+    METODO inferir_tipo(no):
+        SE no eh NumberExpr: RETORNAR "number"
+        SE no eh StringExpr: RETORNAR "string"
+        SE no eh BoolExpr:   RETORNAR "bool"
+        SE no eh ListLiteral: RETORNAR "list"
+        SE no eh ForkStmt:   RETORNAR "task"
+        SE no eh IdentifierExpr:
+            simbolo <- tabela_simbolos.consultar(no.nome)
+            SE simbolo != NULO: RETORNAR simbolo.tipo
+            RETORNAR "unknown"
+        SE no eh BinaryExpr:
+            SE no.op EM ["==", "!=", "<", "<=", ">", ">=", "&&", "||"]:
+                RETORNAR "bool"
+            tipo_esq <- inferir_tipo(no.esquerda)
+            tipo_dir <- inferir_tipo(no.direita)
+            SE no.op == "+" E (tipo_esq == "string" OU tipo_dir == "string"):
+                RETORNAR "string"
+            RETORNAR "number"
+        RETORNAR "unknown"
+
+    METODO validar_no(no):
+        SE no eh VarDecl:
+            SE no.valor_inicial != NULO:
+                validar_no(no.valor_inicial)
+                tipo_valor <- inferir_tipo(no.valor_inicial)
+                SE no.tipo != "var" E tipo_valor != "unknown" E no.tipo != tipo_valor:
+                    reportar_erro("Tipo incompativel na inicializacao de '" + no.nome + "'", no.linha)
+            declarou <- tabela_simbolos.declarar(no.nome, no.tipo, no.linha)
+            SE NAO declarou:
+                reportar_erro("Variavel '" + no.nome + "' ja declarada no escopo", no.linha)
+
+        SENAO SE no eh Assignment:
+            validar_no(no.valor)
+            SE no.alvo eh IdentifierExpr:
+                simbolo <- tabela_simbolos.consultar(no.alvo.nome)
+                SE simbolo == NULO:
+                    reportar_erro("Variavel '" + no.alvo.nome + "' nao declarada", no.linha)
+                SENAO:
+                    tipo_valor <- inferir_tipo(no.valor)
+                    SE simbolo.tipo != "var" E tipo_valor != "unknown" E simbolo.tipo != tipo_valor:
+                        reportar_erro("Atribuicao de tipo incompativel em '" + no.alvo.nome + "'", no.linha)
+
+        SENAO SE no eh WhileStmt OU no eh DoWhileStmt:
+            validar_no(no.condicao)
+            profundidade_laco <- profundidade_laco + 1
+            tabela_simbolos.entrar_escopo()
+            validar_no(no.corpo)
+            tabela_simbolos.sair_escopo()
+            profundidade_laco <- profundidade_laco - 1
+
+        SENAO SE no eh BreakStmt OU no eh ContinueStmt:
+            SE profundidade_laco == 0:
+                reportar_erro("Comando break/continue fora de laco de repeticao", no.linha)
+
+        SENAO SE no eh SeqBlock OU no eh ParBlock:
+            tabela_simbolos.entrar_escopo()
+            PARA CADA subcomando EM no.comandos:
+                validar_no(subcomando)
+            tabela_simbolos.sair_escopo()
+
+        SENAO SE no eh ForkStmt:
+            validar_no(no.destino.args)
+            validar_no(no.corpo)
+
+        SENAO SE no eh JoinStmt:
+            PARA CADA arg EM no.args:
+                validar_no(arg)
+FIM_CLASSE
+\end{lstlisting}

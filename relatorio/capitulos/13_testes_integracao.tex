@@ -1,0 +1,66 @@
+\chapter{TESTES DE INTEGRAÇÃO DE COMPONENTES DE SOFTWARE}
+
+Os Testes de Integração de Software tiveram como finalidade atestar a conformidade das interfaces fornecidas e requeridas entre os sete componentes arquiteturais do compilador MiniPar 2026.2, assegurando que o fluxo de dados entre as fases ocorra de forma íntegra, sem perda de metadados semânticos ou corrupção de tipos.
+
+\section{Matriz de Integração dos Componentes}
+
+A Tabela \ref{tab:matriz_integracao} documenta a matriz de verificação dos contratos de integração entre os componentes.
+
+\begin{table}[htbp]
+\centering
+\caption{Matriz de Testes de Integração de Componentes do MiniPar 2026.2}
+\label{tab:matriz_integracao}
+\small
+\begin{tabular}{p{2.8cm}p{2.8cm}p{5.5cm}p{2.2cm}}
+\toprule
+Componente Origem & Componente Destino & Contrato / Artefato Integrado & Resultado \\
+\midrule
+\texttt{C\_Lexico} & \texttt{C\_Sintatico} & Lista de \texttt{Token} com linha e coluna. & Aprovado (100\%) \\
+\texttt{C\_Sintatico} & \texttt{C\_Semantico} & Raiz \texttt{Program} da Árvore Sintática (AST). & Aprovado (100\%) \\
+\texttt{C\_Semantico} & \texttt{C\_TabelaSimbolos} & Resolução de escopos, símbolos e classes. & Aprovado (100\%) \\
+\texttt{C\_Semantico} & \texttt{C\_Otimizador} & AST validada com metadados semânticos. & Aprovado (100\%) \\
+\texttt{C\_Otimizador} & \texttt{C\_TAC} & AST otimizada (após dobra e código morto). & Aprovado (100\%) \\
+\texttt{C\_TAC} & \texttt{C\_Codegen} & Instruções lineares e AST para C++20. & Aprovado (100\%) \\
+\texttt{C\_Codegen} & Compilador \texttt{g++} & Arquivo \texttt{.cpp} compilado nativamente. & Aprovado (100\%) \\
+Backend Flask & \texttt{analise.py} & Orquestração modular em memória para a Web. & Aprovado (100\%) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Resultados da Suíte Automatizada de Testes (Pytest)}
+
+Para certificar a conformidade de cada interface antes da homologação, foi executada a suíte automatizada utilizando o framework \texttt{pytest}. A suíte totaliza 117 casos de teste unitários e de integração, cobrindo todos os módulos e cenários de validação:
+
+\begin{itemize}
+    \item \texttt{test\_analise.py} (15 testes): Validação do orquestrador de fases em memória para a Web;
+    \item \texttt{test\_componente\_codegen.py} (3 testes): Verificação do componente \texttt{ICodegen} e geração de binários;
+    \item \texttt{test\_frontend.py} (45 testes): Testes do analisador léxico, parser e nós sintáticos;
+    \item \texttt{test\_integracao\_backend.py} (9 testes): Integração ponta a ponta da esteira de compilação C++ e TAC;
+    \item \texttt{test\_optimizer.py} (12 testes): Validação das transformações de dobra de constantes e pureza na AST;
+    \item \texttt{test\_par.py} (12 testes): Verificação de blocos paralelos \texttt{par}, isolamento de threads e variáveis;
+    \item \texttt{test\_program\_analyzer.py} (6 testes): Inspeção estática de requisitos de entrada e multi-terminal;
+    \item \texttt{test\_tabela\_simbolos.py} (4 testes): Testes da pilha de escopos, sombreamento e redeclarações;
+    \item \texttt{test\_web.py} (11 testes): Validação das rotas Flask, download de \texttt{.exe}, inputs por linha e visualização.
+\end{itemize}
+
+O Listing \ref{lst:pytest_log} reproduz o sumário da execução da suíte de testes no ambiente do projeto:
+
+\begin{lstlisting}[language=bash, caption={Sumário de execução da suíte automatizada de testes}, label={lst:pytest_log}]
+============================= test session starts =============================
+platform win32 -- Python 3.14.4, pytest-8.4.2, pluggy-1.7.0
+rootdir: c:\Users\FelipeAragao\Documents\IC\2026-2\Compiladores
+collected 117 items
+
+Minipar2026-2\tests\test_analise.py ...............                     [ 12%]
+Minipar2026-2\tests\test_componente_codegen.py ...                      [ 15%]
+Minipar2026-2\tests\test_frontend.py ................................   [ 42%]
+.............                                                           [ 53%]
+Minipar2026-2\tests\test_integracao_backend.py .........                [ 61%]
+Minipar2026-2\tests\test_optimizer.py ............                      [ 71%]
+Minipar2026-2\tests\test_par.py ............                            [ 82%]
+Minipar2026-2\tests\test_program_analyzer.py ......                     [ 87%]
+Minipar2026-2\tests\test_tabela_simbolos.py ....                        [ 90%]
+Minipar2026-2\tests\test_web.py ...........                             [100%]
+
+======================= 117 passed, 1 warning in 50.57s =======================
+\end{lstlisting}

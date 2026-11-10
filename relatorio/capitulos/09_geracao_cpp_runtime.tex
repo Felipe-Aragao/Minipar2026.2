@@ -1,0 +1,68 @@
+\chapter{GERAÇÃO DE CÓDIGO C++20 E RUNTIME NATIVA}
+
+A etapa final do pipeline de compilação (\textit{Back-End}) converte a Árvore de Sintaxe Abstrata validada e otimizada em código-fonte C++ nativo, em conformidade com o padrão ISO C++20. 
+
+Essa translação está implementada em \texttt{src/codegen.py} e empacotada no componente \texttt{C\_Codegen} (\texttt{src/componente\_codegen.py}), que realiza a interface \texttt{ICodegen}.
+
+\section{Transpilação da AST para C++20}
+
+A geração de código traduz sistematicamente cada construção sintática do MiniPar 2026.2 para equivalentes semânticos em C++20:
+\begin{itemize}
+    \item Orientação a Objetos: classes são convertidas em \texttt{class} C++ com membros públicos. Instanciações via \texttt{new} utilizam ponteiros inteligentes de contagem de referência (\texttt{std::shared\_ptr} via \texttt{std::make\_shared}), com gerenciamento automático de memória. Chamadas de métodos e acessos a atributos utilizam o operador seta (\texttt{->}).
+    \item Dedução Estática de Tipos: utiliza a palavra-chave \texttt{auto} e referências universais (\texttt{auto\&\&}) nos parâmetros de funções geradas, permitindo flexibilidade sem comprometer o desempenho estático.
+    \item Coleções e Matrizes: mapeadas para \texttt{std::vector}, dispondo de funções auxiliares nativas para fatiamento, concatenação e instanciação multidimensional (\texttt{make\_matrix}).
+\end{itemize}
+
+A Tabela \ref{tab:transpilacao_cpp} ilustra as correspondências entre o código MiniPar e o C++20 gerado.
+
+\begin{table}[htbp]
+\centering
+\caption{Mapeamento de Transpilação MiniPar para C++20}
+\label{tab:transpilacao_cpp}
+\small
+\begin{tabular}{p{6.5cm}p{8cm}}
+\toprule
+Construção em MiniPar 2026.2 & Código C++20 Gerado \\
+\midrule
+\texttt{class P \{ var x; func m() \{\} \}} & \texttt{class P \{ public: auto x; auto m() \{\} \};} \\
+\texttt{var obj = new P();} & \texttt{auto obj = std::make\_shared<P>();} \\
+\texttt{obj.m();} & \texttt{obj->m();} \\
+\texttt{par \{ cmd1; cmd2; \}} & \texttt{std::vector<std::thread> \_\_thr; \_\_thr.emplace\_back([\&]\{cmd1;\}); ... for(auto\& t : \_\_thr) t.join();} \\
+\texttt{fork core(2) \{ tarefa(); \}} & \texttt{\_\_register\_task(std::async(std::launch::async, [=]\{ \_\_set\_core\_affinity(2); return tarefa(); \}));} \\
+\texttt{join;} & \texttt{\_\_task\_pool\_wait\_all();} \\
+\texttt{c\_channel("127.0.0.1", 5000)} & \texttt{std::make\_shared<MiniParChannel>("127.0.0.1", 5000)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Runtime Nativa e Afinidade de Núcleos (\textit{Core Affinity})}
+
+O arquivo \texttt{src/cpp\_template.py} atua como cabeçalho de suporte em tempo de execução (\textit{Runtime Engine}), sendo embutido no preâmbulo de todos os arquivos C++ gerados. Seus principais módulos compreendem:
+
+\subsection{Isolamento de Núcleos de CPU (Afinidade de Hardware)}
+Para assegurar que as tarefas despachadas via \texttt{fork core(n)} sejam processadas de forma isolada e em paralelo real sem contenda de contexto com a thread principal, a função \texttt{\_\_set\_core\_affinity(int core\_id)} faz chamadas diretas às APIs nativas de baixo nível do sistema operacional:
+\begin{itemize}
+    \item Ambiente Windows: invoca \texttt{SetThreadAffinityMask(GetCurrentThread(), mask)}, definindo uma máscara binária de afinidade que força a thread a executar exclusivamente no núcleo selecionado.
+    \item Ambiente Linux / POSIX: invoca \texttt{pthread\_setaffinity\_np} associado a estruturas \texttt{cpu\_set\_t}.
+\end{itemize}
+
+\subsection{Pool de Tarefas e Barreiras Assíncronas}
+Tarefas disparadas pelo comando \texttt{fork} são encapsuladas em \texttt{std::shared\_future} através da função auxiliar \texttt{\_\_register\_task}. Essas tarefas são registradas em uma lista com escopo de thread local (\texttt{thread\_local std::vector<std::function<void()>> \_\_task\_pool}). 
+
+Quando uma barreira \texttt{join;} é encontrada no código MiniPar, o runtime invoca \texttt{\_\_task\_pool\_wait\_all()}, garantindo que todas as tarefas pendentes na fila concluam de forma sincronizada antes do avanço do programa. Quando o comando especifica argumentos particulares (\texttt{join(t1, t2)}), o helper \texttt{\_\_minipar\_join\_target} bloqueia seletivamente as instâncias correspondentes.
+
+\subsection{Comunicação TCP com Resiliência}
+A classe \texttt{MiniParChannel} implementa comunicação cliente/servidor baseada em sockets TCP:
+\begin{itemize}
+    \item Utiliza a biblioteca \texttt{ws2\_32.lib} no Windows (inicializada via \texttt{WSAStartup}) e os cabeçalhos padrão \texttt{sys/socket.h} e \texttt{arpa/inet.h} em sistemas Unix.
+    \item A operação \texttt{send} implementa um laço de tentativas de conexão com recriação de descritores de socket, tolerando atrasos de inicialização do servidor sem abortar a execução.
+    \item A operação \texttt{receive} configura um socket servidor (\texttt{bind}, \texttt{listen} e \texttt{accept}), aguarda o pacote de dados do cliente, extrai a mensagem e encerra a conexão de forma limpa.
+\end{itemize}
+
+\section{Orquestração e Compilação Nativa via \texttt{g++}}
+
+Concluída a translação da AST para o arquivo \texttt{output/<nome>.cpp}, o compilador invoca automaticamente o compilador nativo \texttt{g++} através do módulo \texttt{subprocess} do Python:
+\begin{lstlisting}[language=bash]
+g++ -std=c++20 -O3 output/<nome>.cpp -o output/<nome>.exe -pthread -lws2_32
+\end{lstlisting}
+A flag \texttt{-std=c++20} ativa o suporte às diretivas modernas de concorrência, enquanto \texttt{-O3} aciona as otimizações agressivas de vetorização, desenrolamento de laços (\textit{loop unrolling}) e inlining do GCC, gerando um binário executável final de alto desempenho.

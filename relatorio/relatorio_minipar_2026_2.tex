@@ -1,0 +1,199 @@
+\documentclass[
+  12pt,
+  openany,
+  oneside,
+  a4paper,
+  brazilian
+]{abntex2}
+
+% ==============================================================================
+% CONFIGURAÇÃO EM CONFORMIDADE COM O MANUAL DE NORMALIZAÇÃO DA UFAL (2022)
+% ==============================================================================
+
+% --- Margens Oficiais (Manual UFAL p. 19-20 / NBR 14724) ---
+% Superior: 3 cm, Esquerda: 3 cm, Inferior: 2 cm, Direita: 2 cm
+\usepackage[
+  a4paper,
+  top=3cm,
+  left=3cm,
+  bottom=2cm,
+  right=2cm,
+  headheight=15pt,
+  footskip=1cm
+]{geometry}
+
+% --- Tipografia Oficial (Manual UFAL p. 19 / NBR 14724) ---
+% Times New Roman com suporte matemático completo e Courier escalado
+\usepackage{cmap}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage[scaled=0.90]{couriers}
+
+% --- Espaçamentos Oficiais (Manual UFAL p. 21) ---
+% Entrelinhas de 1,5 cm no corpo do texto; simples para citações longas e notas
+\usepackage{setspace}
+\OnehalfSpacing
+\setlength{\parindent}{1.25cm}
+\setlength{\parskip}{0pt}
+
+% --- Pacotes Auxiliares Essenciais ---
+\usepackage{indentfirst}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, fit, backgrounds}
+\usepackage{hyperref}
+
+% --- Padronização dos Títulos conforme NBR 6024 e Manual UFAL p. 49-51 ---
+% Seção Primária: MAIÚSCULAS e NEGRITO
+% Seção Secundária: Negrito, apenas inicial maiúscula
+% Seção Terciária: Não negritada (regular), apenas inicial maiúscula
+\renewcommand{\ABNTEXchapterfont}{\rmfamily\bfseries}
+\renewcommand{\ABNTEXchapterfontsize}{\normalsize\bfseries}
+\renewcommand{\ABNTEXsectionfont}{\rmfamily\bfseries}
+\renewcommand{\ABNTEXsectionfontsize}{\normalsize\bfseries}
+\renewcommand{\ABNTEXsubsectionfont}{\rmfamily\normalfont}
+\renewcommand{\ABNTEXsubsectionfontsize}{\normalsize\normalfont}
+\renewcommand{\ABNTEXsubsubsectionfont}{\rmfamily\itshape}
+\renewcommand{\ABNTEXsubsubsectionfontsize}{\normalsize\itshape}
+\renewcommand{\familydefault}{\rmdefault}
+
+% Configurações no Sumário (Manual UFAL p. 51)
+\renewcommand{\cftchapterfont}{\bfseries}
+\renewcommand{\cftchapterpagefont}{\bfseries}
+\renewcommand{\cftsectionfont}{\bfseries}
+\renewcommand{\cftsectionpagefont}{\bfseries}
+\renewcommand{\cftsubsectionfont}{\normalfont}
+\renewcommand{\cftsubsectionpagefont}{\normalfont}
+
+% Oculta o título interno do sumário para usar o título centralizado oficial
+\renewcommand{\printtoctitle}[1]{}
+
+% Título de Referências centralizado conforme Manual UFAL p. 21
+\renewcommand{\bibname}{REFERÊNCIAS}
+
+% --- Configurações Limpas do Listings ---
+\definecolor{codegreen}{rgb}{0,0.5,0}
+\definecolor{codegray}{rgb}{0.45,0.45,0.45}
+\definecolor{codepurple}{rgb}{0.5,0,0.7}
+\definecolor{backcolour}{rgb}{0.98,0.98,0.98}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen}\itshape,
+    keywordstyle=\color{blue!80!black}\bfseries,
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=none,                    
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2,
+    frame=lines,
+    rulecolor=\color{gray!40}
+}
+\lstset{style=mystyle}
+
+% --- Configurações de hiperlinks discretos ---
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    filecolor=black,      
+    urlcolor=blue!75!black
+}
+
+% --- Definição de subtítulo ---
+\newcommand{\subtitulo}[1]{\newcommand{\imprimirsubtitulo}{#1}}
+
+% --- Informações Institucionais ---
+\titulo{DESENVOLVIMENTO DE UM COMPILADOR MINIPAR 2026.2}
+\autor{Érico Almeida Bernardino \and Felipe Lima Aragão \and Lucas Trindade de Souza}
+\local{Maceió, AL}
+\data{2026}
+
+% ==============================================================================
+% INÍCIO DO DOCUMENTO
+% ==============================================================================
+\begin{document}
+
+\shorthandoff{"}
+\frenchspacing
+
+% ==============================================================================
+% ELEMENTOS PRÉ-TEXTUAIS (Manual UFAL p. 19-25)
+% ==============================================================================
+\pagestyle{empty}
+
+% --- 1. CAPA OFICIAL (Manual UFAL Figura 6 e 7, p. 24-25) ---
+\begin{capa}
+    \centering
+    {\ABNTEXchapterfont\bfseries\normalsize UNIVERSIDADE FEDERAL DE ALAGOAS}\\[0.2cm]
+    {\ABNTEXchapterfont\bfseries\normalsize INSTITUTO DE COMPUTAÇÃO}\\[0.2cm]
+    {\ABNTEXchapterfont\bfseries\normalsize CIÊNCIA DA COMPUTAÇÃO}
+
+    \vspace{3.5cm}
+
+    {\normalsize\bfseries ÉRICO ALMEIDA BERNARDINO}\\[0.2cm]
+    {\normalsize\bfseries FELIPE LIMA ARAGÃO}\\[0.2cm]
+    {\normalsize\bfseries LUCAS TRINDADE DE SOUZA}
+
+    \vspace{4.0cm}
+
+    {\ABNTEXchapterfont\bfseries\normalsize DESENVOLVIMENTO DE UM COMPILADOR PARA A LINGUAGEM MINIPAR 2026.2}\\[0.6cm]
+    {\normalsize\url{https://github.com/Felipe-Aragao/Minipar2026.2}}
+
+    \vfill
+    {\normalsize\bfseries MACEIÓ -- AL}\\[0.2cm]
+    {\normalsize\bfseries 2026}
+\end{capa}
+
+% --- 2. SUMÁRIO (Manual UFAL p. 51 - Palavra SUMÁRIO centralizada) ---
+\clearpage
+\pdfbookmark[0]{\contentsname}{toc}
+\begin{center}
+    {\ABNTEXchapterfont\bfseries\normalsize SUMÁRIO}
+\end{center}
+\vspace{0.5cm}
+\tableofcontents*
+\clearpage
+
+% ==============================================================================
+% ELEMENTOS TEXTUAIS (Manual UFAL p. 21 / NBR 14724)
+% Numeração arábica a partir da Introdução no canto superior direito
+% ==============================================================================
+\textual
+\pagestyle{simple}
+
+\input{capitulos/01_introducao}
+\input{capitulos/02_linguagem_bnf}
+\input{capitulos/03_analisador_lexico}
+\input{capitulos/04_analisador_sintatico}
+\input{capitulos/05_analisador_semantico}
+\input{capitulos/06_tabela_simbolos}
+\input{capitulos/07_otimizador_middleend}
+\input{capitulos/08_codigo_intermediario_tac}
+\input{capitulos/09_geracao_cpp_runtime}
+\input{capitulos/10_interfaces_compilador}
+\input{capitulos/11_gerencia_projeto_backlogs}
+\input{capitulos/12_modelagem_uml_cbse}
+\input{capitulos/13_testes_integracao}
+\input{capitulos/14_bateria_testes_oficiais}
+\input{capitulos/15_implementacao_tecnologias}
+\input{capitulos/16_conclusao_referencias}
+
+\end{document}

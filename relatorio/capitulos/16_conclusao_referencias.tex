@@ -1,0 +1,41 @@
+\chapter{CONCLUSÃO}
+
+O desenvolvimento do compilador da linguagem MiniPar 2026.2 atendeu integralmente aos requisitos técnicos e pedagógicos da disciplina de Compiladores da Universidade Federal de Alagoas. A adoção da Engenharia de Software Baseada em Componentes (CBSE) assegurou uma arquitetura modular, com baixo acoplamento e contratos de interface bem definidos entre todas as fases de compilação.
+
+O pipeline consolida a análise léxica com filtragem de comentários, análise sintática com geração de AST fortemente tipada, análise semântica em duas passagens com controle de escopo e tipos, otimização estática na AST no backend, síntese de Código Intermediário de Três Endereços (TAC) e transpilação para C++ nativo em padrão ISO C++20. A infraestrutura de paralelismo viabilizou o particionamento real de tarefas via \texttt{fork} e \texttt{join} com afinidade determinística de núcleos de hardware e comunicação por mensagens via canais TCP/IP.
+
+A validação do projeto foi comprovada pela execução bem-sucedida de todos os 11 programas de teste oficiais e pela aprovação de 100\% dos 117 casos de teste automatizados na suíte pytest. Adicionalmente, as três modalidades de interface integradas — linha de comando (CLI), interface de desenvolvedor e interface didática com visualização interativa da AST em D3.js — proporcionam flexibilidade operacional e transparência pedagógica no uso do compilador.
+
+% ==============================================================================
+% ELEMENTOS PÓS-TEXTUAIS
+% ==============================================================================
+
+\postextual
+
+\chapter*{LINKS ÚTEIS}
+\addcontentsline{toc}{chapter}{LINKS ÚTEIS}
+
+\begin{enumerate}
+    \item Repositório Oficial no GitHub (Código-Fonte e Relatório):\\
+    \url{https://github.com/Felipe-Aragao/Minipar2026.2}
+    
+    \item Apresentação do Projeto:\\
+    \textcolor{red}{<Inserir link público da apresentação em slides, caso aplicável>}
+    
+    \item Referência de Interface Didática (Compilador IFSC):\\
+    \url{http://pesquisa06.lages.ifsc.edu.br/}
+\end{enumerate}
+
+% --- Referências Bibliográficas (Norma ABNT NBR 6023) ---
+\begin{thebibliography}{99}
+
+\bibitem{aho2008}
+AHO, Alfred V.; LAM, Monica S.; SETHI, Ravi; ULLMAN, Jeffrey D. \textit{Compiladores: princípios, técnicas e ferramentas}. 2. ed. São Paulo: Pearson Addison-Wesley, 2008.
+
+\bibitem{dominguez_componentes}
+DOMINGUEZ, Arturo Hernandez. \textit{Elementos de Implementação Utilizando Componentes de Software}. Material de apoio da disciplina de Compiladores. Maceió: Universidade Federal de Alagoas (UFAL), Instituto de Computação, 2026.
+
+\bibitem{dominguez_minipar}
+DOMINGUEZ, Arturo Hernandez. \textit{Projeto Compilador MiniPar 2026.2: Orientado a Objetos com Real Paralelismo e Nova Segunda Interface Web}. Especificação oficial. Maceió: Universidade Federal de Alagoas (UFAL), 2026.
+
+\end{thebibliography}
