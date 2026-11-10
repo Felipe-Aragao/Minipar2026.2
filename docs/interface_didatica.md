@@ -75,7 +75,7 @@ interface anterior. Os controles de redimensionamento de C também foram mantido
 No terminal, a compilação direta continua sendo:
 
 ```powershell
-python main.py tests/teste11_tokenizador.minipar
+python main.py tests/oficiais/teste11_tokenizador.minipar
 ```
 
 Ela grava C++, TAC e executável em `output/`. O arquivo
@@ -88,7 +88,7 @@ python -m pytest tests -q
 python tests/run_all.py
 ```
 
-Os nove casos de `tests/test_web.py` verificam as rotas das duas interfaces,
+Os testes de `tests/test_web.py` verificam as rotas das duas interfaces,
 arquivos locais, resultados por fase, erros de geração, entradas com espaços,
 download de um executável que realmente roda, falha em execução e requisições
 inválidas. São verificações da integração Web, complementares aos programas

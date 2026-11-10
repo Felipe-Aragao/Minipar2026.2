@@ -11,6 +11,7 @@ class Symbol:
     params: List[str] = field(default_factory=list)
     attributes: Dict[str, str] = field(default_factory=dict)
     methods: Dict[str, List[str]] = field(default_factory=dict)
+    contains_objects: bool = False
 
 
 class ITabelaSimbolos(ABC):

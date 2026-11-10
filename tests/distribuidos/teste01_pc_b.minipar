@@ -1,0 +1,17 @@
+# PC B: servidor da calculadora. Informar o IP do PC A.
+func calcular(op, a, b) {
+    if (op == "+") { return a + b; }
+    if (op == "-") { return a - b; }
+    if (op == "*") { return a * b; }
+    if (op == "/") { return a / b; }
+    return 0;
+}
+seq {
+    var ip_a = input("IP do PC A: ");
+    var op = receive(c_channel("0.0.0.0", 15101));
+    var a = to_number(receive(c_channel("0.0.0.0", 15103)));
+    var b = to_number(receive(c_channel("0.0.0.0", 15104)));
+    var resultado = calcular(op, a, b);
+    send(c_channel(ip_a, 15102), to_string(resultado));
+    print("PC B calculou:", resultado);
+}

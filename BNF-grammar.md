@@ -1173,6 +1173,13 @@ O analisador semântico (`src/semantic.py`) usa inferência simples de tipos com
 
 ### Limites atuais da validação semântica
 
+Tarefas de `par` e `fork` não podem capturar objetos externos de classe conhecidos
+pelo analisador, mesmo para chamadas de métodos ou passagem como argumento.
+Aliases e coleções marcadas como contendo objetos também são rejeitados. Objetos
+criados dentro da própria tarefa continuam permitidos. A regra é conservadora:
+não tenta distinguir métodos de leitura de métodos mutáveis. Ela não substitui
+uma análise completa de efeitos entre funções ou de tipos de retorno desconhecidos.
+
 A verificação de isolamento cobre atribuições diretas, por índice e por propriedade
 com raiz identificável. Leitura de variáveis externas é permitida. Declarações locais
 homônimas não liberam escrita externa; cada tarefa de `par` ou `fork`, inclusive
@@ -1227,7 +1234,7 @@ Listas são rejeitadas com diagnóstico específico. Chamadas `append`, `push_ba
 O Teste 11 é um programa MiniPar que implementa um minicompilador de expressões
 infixadas. A sintaxe já contempla classes, métodos, recursão, listas, strings,
 indexação, operações aritméticas e parênteses. O programa de integração
-`tests/teste11_tokenizador.minipar` usa essas construções para gerar tokens, AST,
+`tests/oficiais/teste11_tokenizador.minipar` usa essas construções para gerar tokens, AST,
 tabela de símbolos, TAC e Assembly ARMv7, além de avaliar a expressão.
 
 Os literais string agora geram `std::string`, permitindo armazenamento em variáveis,

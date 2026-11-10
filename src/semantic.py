@@ -123,9 +123,37 @@ class SemanticAnalyzer:
     def _check_memory_isolation(self, name: str, node: ASTNode) -> None:
         if self._parallel_scope_start is None:
             return
+        symbol = self._lookup(name)
+        if symbol and (symbol.type in self._classes or symbol.contains_objects) and not isinstance(node, Assignment):
+            return  # A validação da expressão raiz já rejeita a captura do objeto.
         index = self.tabela_simbolos.localizar_escopo(name)
         if index is not None and index < self._parallel_scope_start:
             self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um {self._parallel_kind}. Use mensagens (canais) para compartilhar dados.")
+
+    def _contains_objects(self, node: Optional[ASTNode]) -> bool:
+        if node is None:
+            return False
+        if self._infer_type(node) in self._classes:
+            return True
+        if isinstance(node, IdentifierExpr):
+            symbol = self._lookup(node.name)
+            return bool(symbol and symbol.contains_objects)
+        if isinstance(node, (IndexExpr, PropertyAccess)):
+            return self._contains_objects(node.object)
+        if isinstance(node, ListLiteral):
+            return any(self._contains_objects(value) for value in node.elements)
+        if isinstance(node, MatrixCreateExpr):
+            return self._contains_objects(node.init_value)
+        return False
+
+    def _check_object_capture(self, name: str, node: ASTNode) -> None:
+        if self._parallel_scope_start is None:
+            return
+        symbol = self._lookup(name)
+        scope = self.tabela_simbolos.localizar_escopo(name)
+        if symbol and scope is not None and scope < self._parallel_scope_start:
+            if symbol.type in self._classes or symbol.contains_objects:
+                self._report(node, f"Violacao de Isolamento: Objeto externo '{name}' nao pode ser capturado dentro de um {self._parallel_kind}. Crie o objeto dentro da tarefa e troque dados por canais.")
 
     def _validate_parallel_task(self, node: ASTNode, kind: str) -> None:
         old_scope, old_kind = self._parallel_scope_start, self._parallel_kind
@@ -176,6 +204,9 @@ class SemanticAnalyzer:
             if not self._types_compatible(declared_type, actual_type):
                 self._report(node, f"Tipo incompativel em '{node.name}': esperado {declared_type}, recebido {actual_type}.")
             self._define_symbol(node.name, declared_type, node)
+            symbol = self._lookup(node.name)
+            if symbol:
+                symbol.contains_objects = self._contains_objects(node.init_value)
         
         elif isinstance(node, Assignment):
             sym = self._lookup(node.name)
@@ -184,6 +215,8 @@ class SemanticAnalyzer:
             else:
                 self._check_memory_isolation(node.name, node)
             self.validate_node(node.value)
+            if sym:
+                sym.contains_objects = sym.contains_objects or self._contains_objects(node.value)
             if sym and not self._types_compatible(sym.type, self._infer_type(node.value)):
                 self._report(node, f"Tipo incompativel em atribuicao de '{node.name}'.")
                 
@@ -252,9 +285,14 @@ class SemanticAnalyzer:
             root_id = self._get_root_identifier(node.target)
             if root_id:
                 self._check_memory_isolation(root_id, node)
+                symbol = self._lookup(root_id)
+                if symbol:
+                    symbol.contains_objects = symbol.contains_objects or self._contains_objects(node.value)
         elif isinstance(node, IdentifierExpr):
             if self._lookup(node.name) is None:
                 self._report(node, f"Variavel '{node.name}' nao declarada.")
+            else:
+                self._check_object_capture(node.name, node)
         elif isinstance(node, BinaryExpr):
             self.validate_node(node.left)
             self.validate_node(node.right)
@@ -293,6 +331,9 @@ class SemanticAnalyzer:
                 if node.iterator_location is not None:
                     iterator = IdentifierExpr(name=node.iterator_name, **node.iterator_location)
                 self._define_symbol(node.iterator_name, "var", iterator)
+                symbol = self._lookup(node.iterator_name)
+                if symbol:
+                    symbol.contains_objects = self._contains_objects(node.iterable)
             else:
                 self.validate_node(node.initializer)
                 self.validate_node(node.condition)
@@ -344,6 +385,11 @@ class SemanticAnalyzer:
                 self._report(node, f"Metodo '{node.method_name}' espera {len(cls.methods[node.method_name])} argumento(s), recebeu {len(node.arguments)}.")
             self.validate_node(node.object)
             for arg in node.arguments: self.validate_node(arg)
+            if node.method_name in ('append', 'push_back'):
+                root_id = self._get_root_identifier(node.object)
+                symbol = self._lookup(root_id) if root_id else None
+                if symbol:
+                    symbol.contains_objects = symbol.contains_objects or any(self._contains_objects(arg) for arg in node.arguments)
         elif isinstance(node, FuncCallExpr):
             nativas = ("exp", "random", "range", "len", "to_number", "parse_ints", "time", "to_int", "to_string", "fmt", "save_bmp", "launch_file", "write_file", "save_file")
             if node.name not in self._functions and node.name not in nativas:
@@ -390,7 +436,8 @@ class SemanticAnalyzer:
                 self._report(node, f"Classe '{node.class_name}' nao declarada.")
             for arg in node.arguments: self.validate_node(arg)
         elif isinstance(node, ThisExpr):
-            pass
+            if self._parallel_scope_start is not None:
+                self._report(node, "Violacao de Isolamento: 'this' nao pode ser capturado por uma tarefa. Crie o objeto dentro da tarefa.")
         elif isinstance(node, InputExpr):
             if node.prompt: self.validate_node(node.prompt)
 

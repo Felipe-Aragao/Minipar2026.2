@@ -106,6 +106,12 @@ A IDE permite:
 - Visualizar o código C++ gerado
 - Executar o programa e ver a saída
 
+### Testes em dois computadores
+
+Os ensaios de calculadora e fatorial/Fibonacci em máquinas diferentes estão
+documentados em [Testes em dois computadores](docs/testes_dois_computadores.md),
+com programas separados por papel e executor que verifica as respostas.
+
 ### Otimizador Independente de Máquina (Middle-end)
 
 O compilador inclui uma etapa opcional de **Otimização Independente de Máquina** baseada em transformações AST-to-AST e modelada segundo os princípios de Engenharia de Software Baseada em Componentes (CBSE - `IOtimizador` e `C_Otimizador`):
@@ -122,7 +128,7 @@ O compilador inclui uma etapa opcional de **Otimização Independente de Máquin
 Para compilar um arquivo específico:
 
 ```bash
-python main.py tests/teste3_neuronio.minipar
+python main.py tests/oficiais/teste03_neuronio.minipar
 ```
 
 O nome do arquivo de saída é opcional. Por padrão, será utilizado o mesmo nome do arquivo `.minipar`.

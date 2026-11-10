@@ -56,3 +56,34 @@ def test_fork_aninhado_nao_remove_isolamento_do_par():
     resultado = analisar("seq { var x = 0; par { seq { fork { print(x); } join; x = 1; } } }")
     assert len(resultado["erros"]) == 1
     assert "um par" in resultado["erros"][0]["mensagem"]
+
+
+@pytest.mark.parametrize('declaracao,uso', [
+    ('var c = new C();', 'c.mudar();'),
+    ('var c = new C(); var alias = c;', 'alias.mudar();'),
+    ('var cs = [new C()];', 'cs[0].mudar();'),
+    ('var cs = [new C()]; var alias = cs;', 'alias[0].mudar();'),
+    ('var c = new C();', 'usar(c);'),
+])
+@pytest.mark.parametrize('tarefa', ['par { seq { USO } }', 'fork { USO } join;'])
+def test_tarefa_rejeita_captura_de_objetos_externos(declaracao, uso, tarefa):
+    codigo = ('class C { var valor = 0; func mudar() { this.valor = 7; } } '
+              'func usar(c) { c.mudar(); } seq { ' + declaracao + tarefa.replace('USO', uso) + ' }')
+    resultado = analisar(codigo)
+    assert resultado['semantica']['sucesso'] is False
+    assert any('Objeto externo' in e['mensagem'] for e in resultado['erros'])
+    assert resultado['cpp'] == ''
+
+
+def test_objeto_criado_na_propria_tarefa_continua_permitido():
+    codigo = ('class C { var valor = 0; func mudar() { this.valor = 7; } } '
+              'par { seq { var c = new C(); c.mudar(); print(c.valor); } }')
+    assert analisar(codigo)['erros'] == []
+
+
+def test_iterador_de_colecao_de_objetos_nao_pode_ser_capturado():
+    codigo = ('class C { var valor = 0; func mudar() { this.valor = 7; } } '
+              'seq { var cs = [new C()]; for (var c in cs) { '
+              'fork { c.mudar(); } join; } }')
+    resultado = analisar(codigo)
+    assert any('Objeto externo' in e['mensagem'] for e in resultado['erros'])

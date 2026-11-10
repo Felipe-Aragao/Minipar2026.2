@@ -1,0 +1,17 @@
+# PC A calcula fatorial enquanto solicita Fibonacci ao PC B.
+seq {
+    var ip_b = input("IP do PC B: ");
+    par {
+        seq {
+            var fat = 1;
+            var i = 1;
+            while (i <= 5) { fat = fat * i; i = i + 1; }
+            print("PC A - Fatorial de 5:", fat);
+        }
+        seq {
+            send(c_channel(ip_b, 15201), "8");
+            var resultado = receive(c_channel("0.0.0.0", 15202));
+            print("PC A recebeu Fibonacci:", resultado);
+        }
+    }
+}

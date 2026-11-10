@@ -1,0 +1,9 @@
+# PC A: cliente da calculadora. Informar o IP do PC B.
+seq {
+    var ip_b = input("IP do PC B: ");
+    send(c_channel(ip_b, 15101), "+");
+    send(c_channel(ip_b, 15103), "7");
+    send(c_channel(ip_b, 15104), "5");
+    var resultado = receive(c_channel("0.0.0.0", 15102));
+    print("PC A recebeu:", resultado);
+}
