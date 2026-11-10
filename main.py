@@ -7,13 +7,14 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 from componente_lexico import C_Lexico, ILexico
 from componente_semantico import C_Semantico, ISemantico
 from componente_sintatico import C_Sintatico, ISintatico
+from componente_otimizador import C_Otimizador, IOtimizador
 from componente_tac import C_TAC, ITAC
 from lexer import LexError, TokenType
 from parser import ParseError
 from componente_codegen import C_Codegen, ICodegen
 
-def compile_file(source_path: str, output_name: str) -> bool:
-    """Processa as 3 Fases do Compilador em um arquivo alvo."""
+def compile_file(source_path: str, output_name: str, otimizar: bool = False) -> bool:
+    """Processa as Fases do Compilador em um arquivo alvo."""
     print(f"\n=== Compilando: {source_path} ===")
     try:
         with open(source_path, encoding="utf-8") as f:
@@ -48,6 +49,18 @@ def compile_file(source_path: str, output_name: str) -> bool:
     if not validacao.sucesso:
         print("[ERRO] Falha na Analise Semantica. Compilacao abortada.", file=sys.stderr)
         return False
+
+    if otimizar:
+        print("[Fase Intermediária] Otimização Independente de Máquina (Middle-end)...")
+        otimizador: IOtimizador = C_Otimizador()
+        res_opt = otimizador.otimizar(program)
+        program = res_opt.programa_otimizado
+        reducao = 0.0
+        if res_opt.nos_antes > 0:
+            reducao = round((1.0 - (res_opt.nos_depois / res_opt.nos_antes)) * 100.0, 1)
+        print(f"[Otimizador] Nós da AST: {res_opt.nos_antes} -> {res_opt.nos_depois} ({reducao}% de redução)")
+        if res_opt.transformacoes:
+            print(f"[Otimizador] {len(res_opt.transformacoes)} transformação(ões) aplicada(s).")
 
     print("[Fase 3] Geracao de Codigo Intermediario (TAC - 3 enderecos)...")
     tac: ITAC = C_TAC()
@@ -118,23 +131,26 @@ def start_interactive():
 
 
 def main() -> int:
+    args = sys.argv[1:]
+    otimizar = False
+    if "-O" in args or "--optimize" in args:
+        otimizar = True
+        args = [a for a in args if a not in ("-O", "--optimize")]
+
     # Se rodar sem argumentos (ex: `python main.py`), inicia a interface de escolha
-    if len(sys.argv) < 2:
+    if not args:
         start_interactive()
         return 0
 
-    # Caso o script seja chamado via subprocesso pela IDE (passando arquivo como argumento)
-    source_path  = sys.argv[1]
-    
-    # Se não passarem o nome da saída manualmente, extraímos do nome do próprio arquivo Minipar
-    if len(sys.argv) > 2:
-        output_name = sys.argv[2]
+    source_path = args[0]
+    if len(args) > 1:
+        output_name = args[1]
     else:
         base_file = os.path.basename(source_path)
         output_name = base_file.replace('.minipar', '')
 
     print("=== Compilador MiniPar ===")
-    success = compile_file(source_path, output_name)
+    success = compile_file(source_path, output_name, otimizar=otimizar)
     
     if success:
         print("=== Processo Finalizado ===")

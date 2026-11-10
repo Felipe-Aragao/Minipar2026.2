@@ -41,6 +41,21 @@ def test_analise_web_entrega_todas_as_fases_e_posicoes(client):
     assert 'print x' in data['tac'] and 'int main()' in data['cpp']
 
 
+def test_analise_web_com_otimizacao(client):
+    result = client.post('/api/analisar', json={
+        'code': 'seq { var x = 2 + 3 * 4; print(x + 0); }',
+        'otimizar': True
+    })
+    assert result.status_code == 200
+    data = result.json
+    assert data['erros'] == []
+    assert data['otimizacao']['ativa'] is True
+    assert data['otimizacao']['nos_antes'] > data['otimizacao']['nos_depois']
+    assert data['otimizacao']['reducao_pct'] > 0
+    assert 'x = 14' in data['tac']
+    assert 'x + 0' in data['tac']
+
+
 @pytest.mark.parametrize(('code', 'phase', 'semantic'), [
     ('seq { var x = ; }', 'sintatica', None),
     ('seq { print(ausente); }', 'semantica', False),
@@ -99,6 +114,18 @@ def test_execucao_com_codigo_de_erro_nao_e_marcada_como_sucesso(client):
     data = client.post('/api/compile', json={'code': 'seq { return 7; }'}).json
     assert data['success'] is False and data['returncode'] == 7
     assert 'codigo 7' in data['stderr']
+
+
+@pytest.mark.skipif(shutil.which('g++') is None, reason='g++ necessario')
+def test_execucao_web_com_otimizador(client):
+    response = client.post('/api/compile', json={
+        'code': 'seq { var x = 2 + 3 * 4; print(x + 0); }',
+        'filename': 'teste_opt.minipar',
+        'otimizar': True
+    })
+    data = response.json
+    assert response.status_code == 200 and data['success'], data
+    assert data['execution_stdout'].strip() == '14'
 
 
 def test_rejeita_payload_invalido_e_nome_com_caminho(client):

@@ -132,10 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
         clearEditorErrorMarks();
 
         try {
+            const chkOpt = document.getElementById('chk-optimize');
+            const otimizar = chkOpt ? chkOpt.checked : false;
             const resp = await fetch('/api/analisar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code })
+                body: JSON.stringify({ code: code, otimizar: otimizar })
             });
 
             if (!resp.ok) {
@@ -150,7 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Renderizar cada fase
             renderTokensView(data.tokens || []);
             renderSemanticView(data.semantica, data.simbolos || [], data.erros || []);
-            renderTacView(data.tac || '');
+            renderTacView(data.tac || '', data.otimizacao);
             renderCppView(data.cpp || '');
 
             if (data.ast) {
@@ -706,9 +708,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 8. RENDERIZAÇÃO DA VISÃO TAC E C++
     // ==========================================
-    function renderTacView(tacText) {
+    function renderTacView(tacText, otimizacao) {
         const el = document.getElementById('tac-output');
         el.textContent = tacText || 'Nenhum código TAC gerado (verifique se há erros nas fases anteriores).';
+
+        const banner = document.getElementById('tac-optimization-banner');
+        const statsEl = document.getElementById('tac-optimization-stats');
+        if (banner && statsEl) {
+            if (otimizacao && otimizacao.ativa) {
+                banner.style.display = 'block';
+                let detalhe = `Nós da AST: ${otimizacao.nos_antes} → ${otimizacao.nos_depois} (${otimizacao.reducao_pct}% de redução).`;
+                if (otimizacao.transformacoes && otimizacao.transformacoes.length > 0) {
+                    detalhe += `\nTransformações aplicadas (${otimizacao.transformacoes.length}):\n• ` + otimizacao.transformacoes.join('\n• ');
+                } else {
+                    detalhe += '\nNenhuma simplificação necessária para este código.';
+                }
+                statsEl.innerText = detalhe;
+                statsEl.style.whiteSpace = 'pre-line';
+            } else {
+                banner.style.display = 'none';
+            }
+        }
     }
 
     function renderCppView(cppText) {
@@ -737,13 +757,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const startTime = performance.now();
 
         try {
+            const chkOpt = document.getElementById('chk-optimize');
+            const otimizar = chkOpt ? chkOpt.checked : false;
             const resp = await fetch('/api/compile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: code,
                     filename: state.currentFile,
-                    inputs: inputs
+                    inputs: inputs,
+                    otimizar: otimizar
                 })
             });
 
@@ -774,12 +797,15 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Compilando com g++ -O3 para gerar executável...');
 
         try {
+            const chkOpt = document.getElementById('chk-optimize');
+            const otimizar = chkOpt ? chkOpt.checked : false;
             const resp = await fetch('/api/download_exe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: code,
-                    filename: state.currentFile
+                    filename: state.currentFile,
+                    otimizar: otimizar
                 })
             });
 
@@ -869,6 +895,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 12. FERRAMENTAS DO EDITOR (COPIAR, LIMPAR)
     // ==========================================
     document.getElementById('btn-analyze').addEventListener('click', runAnalysis);
+    const chkOptEl = document.getElementById('chk-optimize');
+    if (chkOptEl) {
+        chkOptEl.addEventListener('change', runAnalysis);
+    }
 
     document.getElementById('btn-clear-code').addEventListener('click', () => {
         state.editor.setValue('');
