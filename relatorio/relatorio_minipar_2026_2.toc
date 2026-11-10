@@ -61,36 +61,43 @@
 \setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
 \contentsline {chapter}{\chapternumberline {12}\MakeTextUppercase []{MODELAGEM UML BASEADA EM COMPONENTES DE SOFTWARE (CBSE)}}{40}{chapter.12}%
 \contentsline {section}{\numberline {12.1}Diagrama de Casos de Uso}{40}{section.12.1}%
-\contentsline {section}{\numberline {12.2}Arquitetura de Componentes de Software}{40}{section.12.2}%
-\contentsline {section}{\numberline {12.3}Modelagem via Diagrama de Classes Conceitual}{42}{section.12.3}%
-\contentsline {section}{\numberline {12.4}Diagrama de Atividades / Fluxo de Compilação}{42}{section.12.4}%
+\contentsline {section}{\numberline {12.2}Arquitetura utilizando Componentes de Software}{40}{section.12.2}%
+\contentsline {section}{\numberline {12.3}Modelagem dos Componentes de Software via Diagrama de Classes}{41}{section.12.3}%
+\contentsline {subsection}{\numberline {12.3.1}Componente Analisador Léxico}{42}{subsection.12.3.1}%
+\contentsline {subsection}{\numberline {12.3.2}Componente Analisador Sintático}{42}{subsection.12.3.2}%
+\contentsline {subsection}{\numberline {12.3.3}Componente Tabela de Símbolos}{42}{subsection.12.3.3}%
+\contentsline {subsection}{\numberline {12.3.4}Componente Analisador Semântico}{43}{subsection.12.3.4}%
+\contentsline {subsection}{\numberline {12.3.5}Componente Otimizador}{43}{subsection.12.3.5}%
+\contentsline {subsection}{\numberline {12.3.6}Componente Gerador de Código Intermediário (TAC)}{44}{subsection.12.3.6}%
+\contentsline {subsection}{\numberline {12.3.7}Componente Gerador de Código C++}{44}{subsection.12.3.7}%
+\contentsline {subsection}{\numberline {12.3.8}Componente de Controle e Interfaces}{45}{subsection.12.3.8}%
 \setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
-\contentsline {chapter}{\chapternumberline {13}\MakeTextUppercase []{TESTES DE INTEGRAÇÃO DE COMPONENTES DE SOFTWARE}}{44}{chapter.13}%
-\contentsline {section}{\numberline {13.1}Matriz de Integração dos Componentes}{44}{section.13.1}%
-\contentsline {section}{\numberline {13.2}Resultados da Suíte Automatizada de Testes (Pytest)}{44}{section.13.2}%
+\contentsline {chapter}{\chapternumberline {13}\MakeTextUppercase []{TESTES DE INTEGRAÇÃO DE COMPONENTES DE SOFTWARE}}{46}{chapter.13}%
+\contentsline {section}{\numberline {13.1}Matriz de Integração dos Componentes}{46}{section.13.1}%
+\contentsline {section}{\numberline {13.2}Resultados da Suíte Automatizada de Testes (Pytest)}{46}{section.13.2}%
 \setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
-\contentsline {chapter}{\chapternumberline {14}\MakeTextUppercase []{BATERIA OFICIAL DOS 11 PROGRAMAS DE TESTE}}{46}{chapter.14}%
-\contentsline {section}{\numberline {14.1}Teste 1: Calculadora Cliente-Servidor com Sockets TCP}{46}{section.14.1}%
-\contentsline {section}{\numberline {14.2}Teste 2: Paralelismo Concorrente (Fatorial e Fibonacci)}{46}{section.14.2}%
-\contentsline {section}{\numberline {14.3}Teste 3: Neurônio Perceptron com Orientação a Objetos}{47}{section.14.3}%
-\contentsline {section}{\numberline {14.4}Teste 4: Rede Neural MLP (Problema XOR)}{47}{section.14.4}%
-\contentsline {section}{\numberline {14.5}Teste 5: Sistema de Recomendação de E-commerce}{48}{section.14.5}%
-\contentsline {section}{\numberline {14.6}Teste 6: Quicksort Recursivo com POO}{48}{section.14.6}%
-\contentsline {section}{\numberline {14.7}Teste 7: Quicksort Iterativo com Pilha Explícita e Validação de TAC}{49}{section.14.7}%
-\contentsline {section}{\numberline {14.8}Teste 8: Avaliação Paralela em 4 Núcleos de CPU (Speedup)}{50}{section.14.8}%
-\contentsline {section}{\numberline {14.9}Teste 9: 5 Núcleos (Avaliação Paralela + Fractal Mandelbrot ASCII)}{50}{section.14.9}%
-\contentsline {section}{\numberline {14.10}Teste 10: 6 Núcleos (Avaliação + Mandelbrot + Tapete de Sierpinski)}{51}{section.14.10}%
-\contentsline {section}{\numberline {14.11}Teste 11: Tokenizador, Avaliador e Mini-Compilador Assembly ARMv7}{52}{section.14.11}%
-\contentsline {section}{\numberline {14.12}Tabela Resumo dos Estados dos Testes}{52}{section.14.12}%
+\contentsline {chapter}{\chapternumberline {14}\MakeTextUppercase []{BATERIA OFICIAL DOS 11 PROGRAMAS DE TESTE}}{48}{chapter.14}%
+\contentsline {section}{\numberline {14.1}Teste 1: Calculadora Cliente-Servidor com Sockets TCP}{48}{section.14.1}%
+\contentsline {section}{\numberline {14.2}Teste 2: Paralelismo Concorrente (Fatorial e Fibonacci)}{48}{section.14.2}%
+\contentsline {section}{\numberline {14.3}Teste 3: Neurônio Perceptron com Orientação a Objetos}{49}{section.14.3}%
+\contentsline {section}{\numberline {14.4}Teste 4: Rede Neural MLP (Problema XOR)}{49}{section.14.4}%
+\contentsline {section}{\numberline {14.5}Teste 5: Sistema de Recomendação de E-commerce}{50}{section.14.5}%
+\contentsline {section}{\numberline {14.6}Teste 6: Quicksort Recursivo com POO}{50}{section.14.6}%
+\contentsline {section}{\numberline {14.7}Teste 7: Quicksort Iterativo com Pilha Explícita e Validação de TAC}{51}{section.14.7}%
+\contentsline {section}{\numberline {14.8}Teste 8: Avaliação Paralela em 4 Núcleos de CPU (Speedup)}{52}{section.14.8}%
+\contentsline {section}{\numberline {14.9}Teste 9: 5 Núcleos (Avaliação Paralela + Fractal Mandelbrot ASCII)}{52}{section.14.9}%
+\contentsline {section}{\numberline {14.10}Teste 10: 6 Núcleos (Avaliação + Mandelbrot + Tapete de Sierpinski)}{53}{section.14.10}%
+\contentsline {section}{\numberline {14.11}Teste 11: Tokenizador, Avaliador e Mini-Compilador Assembly ARMv7}{54}{section.14.11}%
+\contentsline {section}{\numberline {14.12}Tabela Resumo dos Estados dos Testes}{54}{section.14.12}%
 \setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
-\contentsline {chapter}{\chapternumberline {15}\MakeTextUppercase []{IMPLEMENTAÇÃO E AMBIENTE DE DESENVOLVIMENTO}}{53}{chapter.15}%
-\contentsline {section}{\numberline {15.1}Tecnologias Utilizadas e Ambiente}{53}{section.15.1}%
-\contentsline {subsection}{\numberline {15.1.1}Comentários Explicativos no Código-Fonte}{53}{subsection.15.1.1}%
-\contentsline {section}{\numberline {15.2}Passo a Passo da Execução dos Programas de Teste}{53}{section.15.2}%
+\contentsline {chapter}{\chapternumberline {15}\MakeTextUppercase []{IMPLEMENTAÇÃO E AMBIENTE DE DESENVOLVIMENTO}}{55}{chapter.15}%
+\contentsline {section}{\numberline {15.1}Tecnologias Utilizadas e Ambiente}{55}{section.15.1}%
+\contentsline {subsection}{\numberline {15.1.1}Comentários Explicativos no Código-Fonte}{55}{subsection.15.1.1}%
+\contentsline {section}{\numberline {15.2}Passo a Passo da Execução dos Programas de Teste}{55}{section.15.2}%
 \setlength {\cftchapterindent }{0em} \setlength {\cftchapternumwidth }{\cftlastnumwidth }
-\contentsline {chapter}{\chapternumberline {16}\MakeTextUppercase []{CONCLUSÃO}}{55}{chapter.16}%
+\contentsline {chapter}{\chapternumberline {16}\MakeTextUppercase []{CONCLUSÃO}}{57}{chapter.16}%
 \vspace {\cftbeforechapterskip }
 \setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
-\contentsline {chapter}{LINKS ÚTEIS}{56}{chapter*.4}%
+\contentsline {chapter}{LINKS ÚTEIS}{58}{chapter*.4}%
 \setlength {\cftchapterindent }{\cftlastnumwidth } \setlength {\cftchapternumwidth }{2em}
-\contentsline {chapter}{\MakeTextUppercase []{Refer\^encias}}{57}{section*.7}%
+\contentsline {chapter}{\MakeTextUppercase []{Refer\^encias}}{59}{section*.7}%

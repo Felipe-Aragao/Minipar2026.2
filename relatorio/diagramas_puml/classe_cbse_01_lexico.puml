@@ -1,0 +1,26 @@
+@startuml
+skinparam handwritten false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+    ArrowColor #000000
+}
+
+class "<<Interface>>\nILexico" as ILex {
+    + analise_lexica(): Token
+}
+class "Analisador Léxico\n(C_Lexico)" as CLex {
+    - codigo_fonte: String
+    - posicao: int
+    - linha: int
+    - coluna: int
+    + analise_lexica(): Token
+    + obter_tokens(): List<Token>
+}
+ILex <|.. CLex
+@enduml

@@ -1,0 +1,108 @@
+@startuml
+skinparam handwritten false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 10
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+    ArrowColor #000000
+}
+
+' ========================================================
+' Linha 1: Léxico e Sintático
+' ========================================================
+class "<<Interface>>\nILexico" as ILex {
+    + analise_lexica(): Token
+}
+class "Analisador Léxico\n(C_Lexico)" as CLex {
+    - codigo_fonte: String
+    - posicao: int
+    + analise_lexica(): Token
+}
+ILex <|.. CLex
+
+class "<<Interface>>\nISintatica" as ISyn {
+    + analise_sintatica()
+}
+class "Analisador Sintático\n(C_Sintatico)" as CSyn {
+    - tokens: List
+    + analise_sintatica()
+}
+ISyn <|.. CSyn
+
+' ========================================================
+' Linha 2: Tabela de Símbolos e Semântico
+' ========================================================
+class "<<Interface>>\nITabelaSimbolos" as ISym {
+    + inserir(id, tipo)
+    + buscar(id): Simbolo
+}
+class "Tabela de Símbolos\n(C_TabelaSimbolos)" as CSym {
+    - escopos: List
+    + inserir(id, tipo)
+    + buscar(id): Simbolo
+}
+ISym <|.. CSym
+
+class "<<Interface>>\nISemantica" as ISem {
+    + analise_semantica()
+}
+class "Analisador Semântico\n(C_Semantico)" as CSem {
+    - tabela_simbolos: ITabelaSimbolos
+    + analise_semantica()
+}
+ISem <|.. CSem
+
+' ========================================================
+' Linha 3: Otimizador e Gerador TAC
+' ========================================================
+class "<<Interface>>\nIOtimizador" as IOpt {
+    + otimizar()
+}
+class "Otimizador\n(C_Otimizador)" as COpt {
+    + otimizar()
+}
+IOpt <|.. COpt
+
+class "<<Interface>>\nITAC" as ITac {
+    + gerar_tac()
+}
+class "Gerador TAC\n(C_TAC)" as CTac {
+    - temporarios: int
+    + gerar_tac()
+}
+ITac <|.. CTac
+
+' ========================================================
+' Linha 4: Gerador de Código C++ e Interface / Controle
+' ========================================================
+class "<<Interface>>\nICodegen" as IGen {
+    + gerar_codigo()
+}
+class "Gerador C++\n(C_Codegen)" as CGen {
+    - buffer_cpp: String
+    + gerar_codigo()
+}
+IGen <|.. CGen
+
+class "<<Interface>>\nIControle" as ICtrl {
+    + execucao_interface()
+}
+class "Controle\n(C_Controle)" as CCtrl {
+    + execucao_interface()
+}
+ICtrl <|.. CCtrl
+
+' Layout em grade 4x2
+ILex -[hidden]down- ISym
+ISym -[hidden]down- IOpt
+IOpt -[hidden]down- IGen
+
+ISyn -[hidden]down- ISem
+ISem -[hidden]down- ITac
+ITac -[hidden]down- ICtrl
+
+@enduml

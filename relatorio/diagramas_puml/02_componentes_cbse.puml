@@ -1,0 +1,68 @@
+@startuml
+skinparam handwritten false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+    ArrowColor #000000
+}
+
+skinparam interface {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+}
+
+' Componentes Centrais e Periféricos
+[A Léxico] as Lex
+[Tabela de Símbolos] as Sym
+[A Sintática] as Syn
+[A Semântica] as Sem
+[Otimizador] as Opt
+[Gerador TAC] as Tac
+[Gerador C++\n(Execução)] as Gen
+[Interface] as Ui
+
+' Interfaces Fornecidas (Lollipop)
+interface " " as iLex
+interface " " as iSym
+interface " " as iSyn
+interface " " as iSem
+interface " " as iOpt
+interface " " as iTac
+interface " " as iGen
+interface " " as iUi
+
+' Conexões topo: A Léxico fornece para A Sintática
+Lex -down- iLex
+iLex )-- Syn
+
+' Conexões esquerda: Tabela de Símbolos fornece para A Sintática e A Léxico
+Sym -right- iSym
+iSym )-- Syn
+Sym ..> Lex
+
+' Conexões base: A Semântica interage com A Sintática
+Sem -up- iSem
+iSem )-- Syn
+
+' Conexões direita: A Sintática envia para o Backend (Otimizador -> TAC -> C++ -> Interface)
+Syn -right- iSyn
+iSyn )-- Opt
+
+Opt -right- iOpt
+iOpt )-- Tac
+
+Tac -right- iTac
+iTac )-- Gen
+
+Gen -right- iGen
+iGen )-- Ui
+
+' Dependências adicionais para Tabela de Símbolos
+Sem ..> Sym
+Opt ..> Sem
+
+@enduml

@@ -1,0 +1,25 @@
+@startuml
+skinparam handwritten false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+    ArrowColor #000000
+}
+
+class "<<Interface>>\nICodegen" as IGen {
+    + gerar_codigo(ast: ProgramAST): String
+}
+class "Gerador C++\n(C_Codegen)" as CGen {
+    - buffer_cpp: StringBuilder
+    - indentacao: int
+    + emitir(codigo: String)
+    + gerar_codigo(ast: ProgramAST): String
+    + compilar_binario(fonte_cpp: String): String
+}
+IGen <|.. CGen
+@enduml

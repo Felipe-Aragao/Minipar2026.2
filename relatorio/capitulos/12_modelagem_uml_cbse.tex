@@ -1,249 +1,119 @@
 \chapter{MODELAGEM UML BASEADA EM COMPONENTES DE SOFTWARE (CBSE)}
 
-A modelagem arquitetural do compilador MiniPar 2026.2 adota formalmente o paradigma de Engenharia de Software Baseada em Componentes (\textit{Component-Based Software Engineering} -- CBSE), utilizando a notação padrão da Unified Modeling Language (UML). 
+A modelagem arquitetural do compilador MiniPar 2026.2 atende rigorosamente às diretrizes de Engenharia de Software Baseada em Componentes (\textit{Component-Based Software Engineering} -- CBSE) e aos requisitos formais da disciplina segundo a notação padrão da Unified Modeling Language (UML).
 
-O sistema é concebido como um conjunto integrado de componentes desacoplados, de alta coesão e baixo acoplamento, nos quais a comunicação e a transferência de artefatos entre as fases de compilação ocorrem estritamente através de contratos bem definidos de interfaces fornecidas (\textit{provided interfaces}) e interfaces requeridas (\textit{required interfaces}).
+O sistema é estruturado em componentes desacoplados, de alta coesão e baixo acoplamento, nos quais a comunicação e a transferência de artefatos entre as fases de compilação ocorrem através de contratos bem definidos de interfaces fornecidas (\textit{provided interfaces}) e interfaces requeridas (\textit{required interfaces}).
 
 \section{Diagrama de Casos de Uso}
 
-O Diagrama de Casos de Uso da Figura \ref{fig:uml_casos_uso} modela as interações dos atores (Usuário, Desenvolvedor e Aluno Iniciante) com as três modalidades de interface do compilador.
+O Diagrama de Casos de Uso da Figura \ref{fig:uml_casos_uso} modela as interações do usuário e desenvolvedor com as funcionalidades do compilador MiniPar 2026.2.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    actor/.style={circle, draw, minimum size=0.8cm, inner sep=0pt},
-    usecase/.style={ellipse, draw, align=center, fill=blue!5, minimum width=3.8cm, minimum height=0.9cm, font=\small},
-    systembox/.style={draw=black!70, thick, rounded corners, inner sep=0.5cm}
-]
-    % Atores
-    \node (user) at (-5, 0) [actor, label=below:{Desenvolvedor / Aluno}] {};
-    \draw (user.north) -- ++(0,-0.8) -- ++(-0.3,-0.6) (user.north) ++(0,-0.4) -- ++(0.3,-0.6);
-    \draw (user.north) ++(-0.4,-0.2) -- ++(0.8,0);
-
-    % Sistema
-    \node[usecase] (uc1) at (0, 3) {Fornecer Código Fonte (.minipar)};
-    \node[usecase] (uc2) at (0, 1.5) {Inspecionar Fases Didáticas\\(Tokens, AST D3, Semântica)};
-    \node[usecase] (uc3) at (0, 0) {Compilar Programa com/sem\\Otimização (-O)};
-    \node[usecase] (uc4) at (0, -1.5) {Gerar e Baixar Binário (.exe)};
-    \node[usecase] (uc5) at (0, -3) {Executar Programa com Entrada};
-
-    % Fronteira do sistema
-    \begin{scope}[on background layer]
-        \node[systembox, fit=(uc1) (uc5), label=above:{Sistema Compilador MiniPar 2026.2}] {};
-    \end{scope}
-
-    % Relacionamentos
-    \draw[->, thick] (user) -- (uc1);
-    \draw[->, thick] (user) -- (uc2);
-    \draw[->, thick] (user) -- (uc3);
-    \draw[->, thick] (user) -- (uc4);
-    \draw[->, thick] (user) -- (uc5);
-\end{tikzpicture}
-\caption{Diagrama de Casos de Uso do Compilador MiniPar 2026.2 (Notação UML)}
+\includegraphics[width=0.82\textwidth]{figuras/01_casos_de_uso.png}
+\caption{Diagrama de Casos de Uso segundo a notação da UML}
 \label{fig:uml_casos_uso}
 \end{figure}
 
-\section{Arquitetura de Componentes de Software}
+\section{Arquitetura utilizando Componentes de Software}
 
-A especificação estabelece que a arquitetura do compilador deve ser representada por meio de um Diagrama de Componentes na notação UML, destacando as conexões de interfaces fornecidas (representadas pelo símbolo de esfera/pirulito) e interfaces requeridas (representadas pelo semicírculo/soquete).
+A arquitetura de componentes da Figura \ref{fig:uml_componentes} ilustra o acoplamento do compilador por meio de conexões de interfaces fornecidas (pirulito) e requeridas (soquete).
 
-A Figura \ref{fig:uml_componentes} ilustra a arquitetura CBSE implementada no diretório \texttt{src/}:
-\begin{itemize}
-    \item O componente Analisador Léxico consome o texto-fonte e fornece a interface \texttt{ILexico} com a operação \texttt{analise\_lexica()}.
-    \item O componente Analisador Sintático requer \texttt{ILexico} e fornece a interface \texttt{ISintatico} com a operação \texttt{analise\_sintatica()}.
-    \item O componente Tabela de Símbolos fornece a interface \texttt{ITabelaSimbolos} para gerenciamento de escopos e consulta.
-    \item O componente Analisador Semântico requer \texttt{ISintatico} e \texttt{ITabelaSimbolos}, fornecendo a interface \texttt{ISemantico}.
-    \item O componente Otimizador no backend requer \texttt{ISemantico} e fornece a interface \texttt{IOtimizador} com transformações na AST.
-    \item O componente Gerador de TAC fornece \texttt{ITAC} para síntese do código intermediário.
-    \item O componente Gerador de Código C++ fornece \texttt{ICodegen}, transpilando para C++20 e orquestrando o \texttt{g++}.
-\end{itemize}
-
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    component/.style={rectangle, draw=black, thick, fill=blue!10, minimum width=3.4cm, minimum height=1.3cm, align=center, font=\footnotesize\bfseries},
-    interface/.style={circle, draw=black, thick, fill=white, minimum size=0.4cm, inner sep=0pt},
-    socket/.style={arc, draw=black, thick},
-    conn/.style={-{Latex[length=2mm]}, thick}
-]
-    % Nós dos Componentes
-    \node[component] (lex) at (0, 6) {<<component>>\\C\_Lexico};
-    \node[component] (syn) at (0, 4) {<<component>>\\C\_Sintatico};
-    \node[component] (sem) at (0, 2) {<<component>>\\C\_Semantico};
-    \node[component] (sym) at (5.5, 2) {<<component>>\\C\_TabelaSimbolos};
-    \node[component] (opt) at (0, 0) {<<component>>\\C\_Otimizador};
-    \node[component] (tac) at (0, -2) {<<component>>\\C\_TAC};
-    \node[component] (gen) at (0, -4) {<<component>>\\C\_Codegen};
-
-    % Interfaces e conexões (Pirulito e Soquete)
-    % ILexico
-    \draw[thick] (lex) -- (0, 5.15) node[interface, label=right:{\footnotesize\texttt{ILexico}}] (i_lex) {};
-    \draw[conn] (syn) -- (i_lex);
-
-    % ISintatico
-    \draw[thick] (syn) -- (0, 3.15) node[interface, label=right:{\footnotesize\texttt{ISintatico}}] (i_syn) {};
-    \draw[conn] (sem) -- (i_syn);
-
-    % ITabelaSimbolos
-    \draw[thick] (sym) -- (3.7, 2) node[interface, label=above:{\footnotesize\texttt{ITabelaSimbolos}}] (i_sym) {};
-    \draw[conn] (sem) -- (i_sym);
-
-    % ISemantico
-    \draw[thick] (sem) -- (0, 1.15) node[interface, label=right:{\footnotesize\texttt{ISemantico}}] (i_sem) {};
-    \draw[conn] (opt) -- (i_sem);
-
-    % IOtimizador
-    \draw[thick] (opt) -- (0, -0.85) node[interface, label=right:{\footnotesize\texttt{IOtimizador}}] (i_opt) {};
-    \draw[conn] (tac) -- (i_opt);
-
-    % ITAC
-    \draw[thick] (tac) -- (0, -2.85) node[interface, label=right:{\footnotesize\texttt{ITAC}}] (i_tac) {};
-    \draw[conn] (gen) -- (i_tac);
-
-    % ICodegen
-    \draw[thick] (gen) -- (0, -4.85) node[interface, label=right:{\footnotesize\texttt{ICodegen}}] (i_gen) {};
-\end{tikzpicture}
-\caption{Diagrama de Arquitetura de Componentes de Software (UML CBSE com Interfaces Fornecidas e Requeridas)}
+\includegraphics[width=0.98\textwidth]{figuras/02_componentes_cbse.png}
+\caption{Arquitetura utilizando Componentes de Software segundo a notação da UML}
 \label{fig:uml_componentes}
 \end{figure}
 
-\section{Modelagem via Diagrama de Classes Conceitual}
+\section{Modelagem dos Componentes de Software via Diagrama de Classes}
 
-O projeto contempla a modelagem dos componentes e estruturas de dados centrais em um Diagrama de Classes UML. A Figura \ref{fig:uml_classes} detalha a hierarquia dos componentes concretos e as classes que realizam os nós fundamentais da AST.
+Cada componente de software do compilador é modelado individualmente a seguir, apresentando sua respectiva interface de contrato (prefixo \texttt{I}) e a classe concreta realizadora (prefixo \texttt{C\_}).
 
-\begin{figure}[htbp]
+\subsection{Componente Analisador Léxico}
+
+A Figura \ref{fig:classe_lexico} apresenta a modelagem do analisador léxico, composto pela interface \texttt{ILexico} e pela classe componente \texttt{C\_Lexico}.
+
+\begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    conn/.style={-{Triangle[open]}, thick}
-]
-    % Interfaces
-    \node (i_lex_c) at (-3.5, 3) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        <<interface>> ILexico\\
-        \hline
-        + analise\_lexica(codigo: str): list[Token]
-        \end{tabular}
-    };
-
-    \node (c_lex_c) at (-3.5, 1) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        C\_Lexico\\
-        \hline
-        + analise\_lexica(codigo: str): list[Token]
-        \end{tabular}
-    };
-    \draw[conn] (c_lex_c) -- (i_lex_c);
-
-    \node (i_syn_c) at (2.5, 3) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        <<interface>> ISintatico\\
-        \hline
-        + analise\_sintatica(tokens: list[Token]): Program
-        \end{tabular}
-    };
-
-    \node (c_syn_c) at (2.5, 1) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        C\_Sintatico\\
-        \hline
-        + analise\_sintatica(tokens: list[Token]): Program
-        \end{tabular}
-    };
-    \draw[conn] (c_syn_c) -- (i_syn_c);
-
-    % AST Nodes
-    \node (ast_base) at (0, -1) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        <<abstract>> ASTNode\\
-        \hline
-        + line: int\\
-        + col: Optional[int]\\
-        \hline
-        + to\_dict(): dict
-        \end{tabular}
-    };
-
-    \node (fork_node) at (-4, -3.2) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        ForkStmt\\
-        \hline
-        + destino: Destino\\
-        + body: ASTNode
-        \end{tabular}
-    };
-    \draw[conn] (fork_node) -- (ast_base);
-
-    \node (join_node) at (-1.5, -3.2) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        JoinStmt\\
-        \hline
-        + args: List[ASTNode]
-        \end{tabular}
-    };
-    \draw[conn] (join_node) -- (ast_base);
-
-    \node (class_node) at (1.5, -3.2) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        ClassDecl\\
-        \hline
-        + name: str\\
-        + superclass: str\\
-        + attributes: List[VarDecl]\\
-        + methods: List[FuncDecl]
-        \end{tabular}
-    };
-    \draw[conn] (class_node) -- (ast_base);
-
-    \node (prog_node) at (4.5, -3.2) [draw, thick, fill=gray!8, inner sep=0.1cm] {
-        \begin{tabular}{l}
-        Program\\
-        \hline
-        + statements: List[ASTNode]
-        \end{tabular}
-    };
-    \draw[conn] (prog_node) -- (ast_base);
-
-\end{tikzpicture}
-\caption{Diagrama de Classes Conceitual dos Componentes e da AST (Notação UML)}
-\label{fig:uml_classes}
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_01_lexico.png}
+\caption{Diagrama de Classes do Componente Analisador Léxico (\texttt{ILexico} e \texttt{C\_Lexico})}
+\label{fig:classe_lexico}
 \end{figure}
 
-\section{Diagrama de Atividades / Fluxo de Compilação}
+\subsection{Componente Analisador Sintático}
 
-O fluxo dinâmico de execução do compilador, ilustrado na Figura \ref{fig:uml_fluxo}, detalha o percurso do programa desde o código-fonte até a emissão e execução do executável nativo.
+A Figura \ref{fig:classe_sintatico} ilustra o analisador sintático, formado pela interface \texttt{ISintatica} e pela classe componente \texttt{C\_Sintatico}.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    startstop/.style={circle, fill=black, minimum size=0.4cm},
-    activity/.style={rectangle, draw=black, thick, fill=blue!8, rounded corners, align=center, font=\small, minimum width=4cm, minimum height=0.8cm},
-    decision/.style={diamond, draw=black, thick, fill=yellow!15, align=center, font=\scriptsize, inner sep=0.1cm},
-    arrow/.style={-{Latex[length=2.5mm]}, thick}
-]
-    \node[startstop] (start) at (0, 7) {};
-    \node[activity] (a1) at (0, 6) {Código-Fonte MiniPar (\texttt{.minipar})};
-    \node[activity] (a2) at (0, 4.8) {Análise Léxica (\texttt{C\_Lexico})};
-    \node[activity] (a3) at (0, 3.6) {Análise Sintática (\texttt{C\_Sintatico})};
-    \node[activity] (a4) at (0, 2.4) {Análise Semântica e Escopos (\texttt{C\_Semantico})};
-    \node[decision] (d1) at (0, 1.0) {Otimização\\Habilitada?};
-    \node[activity] (a5) at (3.5, 1.0) {Otimização AST\\(\texttt{C\_Otimizador})};
-    \node[activity] (a6) at (0, -0.4) {Geração de TAC (\texttt{C\_TAC})};
-    \node[activity] (a7) at (0, -1.6) {Transpilação C++20 (\texttt{C\_Codegen})};
-    \node[activity] (a8) at (0, -2.8) {Compilação Nativa via \texttt{g++ -O3}};
-    \node[activity] (a9) at (0, -4.0) {Executável Nativo Final (\texttt{.exe})};
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_02_sintatico.png}
+\caption{Diagrama de Classes do Componente Analisador Sintático (\texttt{ISintatica} e \texttt{C\_Sintatico})}
+\label{fig:classe_sintatico}
+\end{figure}
 
-    \draw[arrow] (start) -- (a1);
-    \draw[arrow] (a1) -- (a2);
-    \draw[arrow] (a2) -- (a3);
-    \draw[arrow] (a3) -- (a4);
-    \draw[arrow] (a4) -- (d1);
-    \draw[arrow] (d1) -- node[above]{\scriptsize Sim} (a5);
-    \draw[arrow] (a5) |- (a6);
-    \draw[arrow] (d1) -- node[right]{\scriptsize Não} (a6);
-    \draw[arrow] (a6) -- (a7);
-    \draw[arrow] (a7) -- (a8);
-    \draw[arrow] (a8) -- (a9);
-\end{tikzpicture}
-\caption{Diagrama de Atividades do Fluxo de Compilação do MiniPar 2026.2}
-\label{fig:uml_fluxo}
+\subsection{Componente Tabela de Símbolos}
+
+A Figura \ref{fig:classe_simbolos} modela o gerenciador de escopos e símbolos, composto pela interface \texttt{ITabelaSimbolos} e pela classe \texttt{C\_TabelaSimbolos}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_03_tabela_simbolos.png}
+\caption{Diagrama de Classes do Componente Tabela de Símbolos (\texttt{ITabelaSimbolos} e \texttt{C\_TabelaSimbolos})}
+\label{fig:classe_simbolos}
+\end{figure}
+
+\subsection{Componente Analisador Semântico}
+
+A Figura \ref{fig:classe_semantico} detalha o analisador semântico e checador de tipos, formado pela interface \texttt{ISemantica} e pela classe \texttt{C\_Semantico}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_04_semantico.png}
+\caption{Diagrama de Classes do Componente Analisador Semântico (\texttt{ISemantica} e \texttt{C\_Semantico})}
+\label{fig:classe_semantico}
+\end{figure}
+
+\subsection{Componente Otimizador}
+
+A Figura \ref{fig:classe_otimizador} ilustra o motor de otimização da AST, composto pela interface \texttt{IOtimizador} e pela classe componente \texttt{C\_Otimizador}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_05_otimizador.png}
+\caption{Diagrama de Classes do Componente Otimizador (\texttt{IOtimizador} e \texttt{C\_Otimizador})}
+\label{fig:classe_otimizador}
+\end{figure}
+
+\subsection{Componente Gerador de Código Intermediário (TAC)}
+
+A Figura \ref{fig:classe_tac} modela a geração de instruções de Três Endereços, composta pela interface \texttt{ITAC} e pela classe componente \texttt{C\_TAC}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_06_tac.png}
+\caption{Diagrama de Classes do Componente Gerador de TAC (\texttt{ITAC} e \texttt{C\_TAC})}
+\label{fig:classe_tac}
+\end{figure}
+
+\subsection{Componente Gerador de Código C++}
+
+A Figura \ref{fig:classe_codegen} apresenta o gerador de código C++20 nativo, estruturado pela interface \texttt{ICodegen} e pela classe \texttt{C\_Codegen}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_07_codegen.png}
+\caption{Diagrama de Classes do Componente Gerador de Código C++ (\texttt{ICodegen} e \texttt{C\_Codegen})}
+\label{fig:classe_codegen}
+\end{figure}
+
+\subsection{Componente de Controle e Interfaces}
+
+A Figura \ref{fig:classe_controle} modela o orquestrador de execução e interface do compilador, composto por \texttt{IControle} e \texttt{C\_Controle}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figuras/classe_cbse_08_controle.png}
+\caption{Diagrama de Classes do Componente de Controle (\texttt{IControle} e \texttt{C\_Controle})}
+\label{fig:classe_controle}
 \end{figure}

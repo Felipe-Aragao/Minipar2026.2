@@ -1,0 +1,42 @@
+@startuml
+skinparam handwritten false
+skinparam monochrome false
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+
+skinparam usecase {
+    BackgroundColor #EDF2F7
+    BorderColor #2B6CB0
+    ArrowColor #2B6CB0
+}
+
+skinparam actor {
+    BackgroundColor #E2E8F0
+    BorderColor #2D3748
+}
+
+left to right direction
+
+actor "Usuário / Desenvolvedor" as User
+
+rectangle "Sistema Compilador MiniPar 2026.2" {
+    usecase "Fornecer Programa Fonte\n(.minipar)" as UC1
+    usecase "Executar Análise e Compilação" as UC2
+    usecase "Inspecionar Fases Didáticas\n(Tokens, AST, Tabela Símbolos, TAC, C++)" as UC3
+    usecase "Compilar com Otimização (-O)" as UC4
+    usecase "Baixar Binário Executável (.exe)" as UC5
+    usecase "Executar Programa Compilado" as UC6
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC5
+User --> UC6
+
+UC2 ..> UC4 : <<extend>>
+UC2 ..> UC5 : <<include>>
+
+@enduml

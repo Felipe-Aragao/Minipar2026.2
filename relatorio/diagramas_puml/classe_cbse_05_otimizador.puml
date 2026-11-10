@@ -1,0 +1,25 @@
+@startuml
+skinparam handwritten false
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam classAttributeIconSize 0
+
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #000000
+    ArrowColor #000000
+}
+
+class "<<Interface>>\nIOtimizador" as IOpt {
+    + otimizar(ast: ProgramAST): ProgramAST
+}
+class "Otimizador\n(C_Otimizador)" as COpt {
+    - nivel_otimizacao: int
+    - alteracoes_feitas: int
+    + otimizar(ast: ProgramAST): ProgramAST
+    + constant_folding(no: ASTNode)
+    + dead_code_elimination(no: ASTNode)
+}
+IOpt <|.. COpt
+@enduml
