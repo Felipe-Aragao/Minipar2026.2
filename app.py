@@ -54,8 +54,10 @@ def ide():
 def api_analisar():
     """Executa a análise modular por fases (Léxico, Sintático, Semântico, TAC, C++) em memória."""
     try:
+        data = request.get_json(silent=True) or {}
         codigo, _, _ = _web_payload()
-        resultado = analisar(codigo)
+        otimizar = bool(data.get('otimizar', False))
+        resultado = analisar(codigo, otimizar=otimizar)
         return jsonify(resultado)
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 400
@@ -65,6 +67,7 @@ def api_analisar():
             "ast": None,
             "simbolos": [],
             "semantica": {"sucesso": None},
+            "otimizacao": {"ativa": False, "nos_antes": 0, "nos_depois": 0, "reducao_pct": 0.0, "transformacoes": []},
             "tac": "",
             "cpp": "",
             "erros": [{"fase": "sistema", "linha": None, "coluna": None, "mensagem": str(e)}]
@@ -124,10 +127,10 @@ def download_exe():
                 return jsonify(success=False, error="Executavel nao foi gerado."), 500
             with open(executable, 'rb') as stream:
                 binary = BytesIO(stream.read())
-        extension = '.exe' if sys.platform == 'win32' else ''
-        return send_file(binary, as_attachment=True,
-                         download_name=os.path.splitext(filename)[0] + extension,
-                         mimetype='application/octet-stream')
+            extension = '.exe' if sys.platform == 'win32' else ''
+            return send_file(binary, as_attachment=True,
+                             download_name=os.path.splitext(filename)[0] + extension,
+                             mimetype='application/octet-stream')
     except ValueError as error:
         return jsonify(success=False, error=str(error)), 400
     except subprocess.TimeoutExpired:

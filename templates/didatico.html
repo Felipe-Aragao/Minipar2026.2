@@ -97,6 +97,10 @@
                     <span id="current-filename" class="file-badge">novo_programa.minipar</span>
                 </div>
                 <div class="pane-tools">
+                    <label class="toggle-optimizer" title="Ativar otimizações independentes de máquina na AST (Constant Folding, Identidades Algébricas e Ramos Mortos)" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; margin-right: 8px; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="chk-optimize" style="cursor: pointer;">
+                        <span>⚡ Otimizar</span>
+                    </label>
                     <button id="btn-clear-code" class="btn-tool" title="Limpar editor">Limpar</button>
                     <button id="btn-copy-code" class="btn-tool" title="Copiar código">Copiar</button>
                     <button id="btn-analyze" class="btn-tool btn-primary-tool" title="Atualizar todas as fases">Analisar Agora</button>
@@ -279,6 +283,10 @@
                     </div>
                 </div>
 
+                <div id="tac-optimization-banner" class="optimization-banner" style="display: none; padding: 10px 14px; background: rgba(59, 130, 246, 0.1); border-left: 4px solid #3b82f6; margin-bottom: 12px; border-radius: 4px; font-size: 0.88rem;">
+                    <div style="font-weight: 600; margin-bottom: 4px; color: #1d4ed8;">⚡ Otimização Independente de Máquina (Middle-end) Ativa</div>
+                    <div id="tac-optimization-stats" style="color: #374151; font-size: 0.84rem; line-height: 1.4;"></div>
+                </div>
                 <div class="tac-container">
                     <div class="code-viewer" id="tac-code-container">
                         <pre id="tac-output">Nenhum TAC gerado ainda.</pre>

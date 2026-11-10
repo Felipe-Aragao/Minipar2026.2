@@ -41,6 +41,21 @@ def test_analise_web_entrega_todas_as_fases_e_posicoes(client):
     assert 'print x' in data['tac'] and 'int main()' in data['cpp']
 
 
+def test_analise_web_com_otimizacao(client):
+    result = client.post('/api/analisar', json={
+        'code': 'seq { var x = 2 + 3 * 4; print(x + 0); }',
+        'otimizar': True
+    })
+    assert result.status_code == 200
+    data = result.json
+    assert data['erros'] == []
+    assert data['otimizacao']['ativa'] is True
+    assert data['otimizacao']['nos_antes'] > data['otimizacao']['nos_depois']
+    assert data['otimizacao']['reducao_pct'] > 0
+    assert 'x = 14' in data['tac']
+    assert 'print x' in data['tac']
+
+
 @pytest.mark.parametrize(('code', 'phase', 'semantic'), [
     ('seq { var x = ; }', 'sintatica', None),
     ('seq { print(ausente); }', 'semantica', False),
