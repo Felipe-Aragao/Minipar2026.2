@@ -53,7 +53,7 @@ def test_analise_web_com_otimizacao(client):
     assert data['otimizacao']['nos_antes'] > data['otimizacao']['nos_depois']
     assert data['otimizacao']['reducao_pct'] > 0
     assert 'x = 14' in data['tac']
-    assert 'print x' in data['tac']
+    assert 'x + 0' in data['tac']
 
 
 @pytest.mark.parametrize(('code', 'phase', 'semantic'), [
