@@ -76,14 +76,14 @@ class ASTOptimizer:
     # -------------------------------------------------------------------------
     # Travessia e Transformação
     # -------------------------------------------------------------------------
-    def _transform_statements(self, statements: List[ASTNode]) -> List[ASTNode]:
+    def _transform_statements(self, statements: List[ASTNode], can_inline_seq: bool = True) -> List[ASTNode]:
         novos: List[ASTNode] = []
         for stmt in statements:
+            is_if = isinstance(stmt, IfStmt)
             transf = self._transform_node(stmt)
             if transf is None:
                 continue
-            # Se um if(true) foi simplificado para um SeqBlock, inlinamos os comandos
-            if isinstance(transf, SeqBlock):
+            if isinstance(transf, SeqBlock) and (is_if or can_inline_seq):
                 novos.extend(transf.statements)
             else:
                 novos.append(transf)
@@ -103,7 +103,8 @@ class ASTOptimizer:
             return node
 
         if isinstance(node, ParBlock):
-            node.statements = self._transform_statements(node.statements)
+            # No ParBlock, cada elemento define uma thread independente; não inlinamos SeqBlocks
+            node.statements = self._transform_statements(node.statements, can_inline_seq=False)
             return node
 
         if isinstance(node, VarDecl):
