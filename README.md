@@ -28,8 +28,10 @@ minipar_python/
 │   ├── ast_nodes.py      # Nós da AST (dataclasses)
 │   ├── lexer.py          # Analisador Léxico
 │   ├── parser.py         # Analisador Sintático
-│   ├── semantic.py       # Analisador Semântico
-│   ├── tac.py            # Gerador de Código Intermediário (TAC)
+│   ├── semantic.py              # Analisador Semântico
+│   ├── optimizer.py             # Motor de Otimização Independente (Middle-end)
+│   ├── componente_otimizador.py # Componente CBSE do Otimizador
+│   ├── tac.py                   # Gerador de Código Intermediário (TAC)
 │   ├── codegen.py        # Gerador de Código C++
 │   └── cpp_template.py   # Template base em C++
 ├── static/               # Arquivos estáticos da IDE Web (CSS, JS)
@@ -103,6 +105,15 @@ A IDE permite:
 - Visualizar o código TAC gerado
 - Visualizar o código C++ gerado
 - Executar o programa e ver a saída
+
+### Otimizador Independente de Máquina (Middle-end)
+
+O compilador inclui uma etapa opcional de **Otimização Independente de Máquina** baseada em transformações AST-to-AST e modelada segundo os princípios de Engenharia de Software Baseada em Componentes (CBSE - `IOtimizador` e `C_Otimizador`):
+
+- **Dobra de Constantes (*Constant Folding*):** Avaliação estática em tempo de compilação de expressões numéricas, booleanas e strings literais (ex: `2 + 3 * 4` → `14`, `!false` → `true`).
+- **Simplificação Algébrica e Redução de Força:** Eliminação de elementos neutros e absorventes (ex: `x + 0` → `x`, `x * 1` → `x`, `x * 0` → `0`, curto-circuitos lógicos).
+- **Eliminação de Ramos Mortos (*Dead Branch Elimination*):** Remoção de estruturas condicionais inalcançáveis (`if (true)`, `if (false)` e `while (false)`).
+- **Controle Opcional:** Habilitado com alternância via checkbox `⚡ Otimizar` na Interface Web Didática ou via parâmetro `otimizar=True` em `analise.analisar()`, fornecendo métricas de redução de nós da AST e relatório de transformações aplicadas.
 
 ### 2. Execução Direta (CLI)
 
