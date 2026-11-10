@@ -757,13 +757,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const startTime = performance.now();
 
         try {
+            const chkOpt = document.getElementById('chk-optimize');
+            const otimizar = chkOpt ? chkOpt.checked : false;
             const resp = await fetch('/api/compile', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: code,
                     filename: state.currentFile,
-                    inputs: inputs
+                    inputs: inputs,
+                    otimizar: otimizar
                 })
             });
 
@@ -794,12 +797,15 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Compilando com g++ -O3 para gerar executável...');
 
         try {
+            const chkOpt = document.getElementById('chk-optimize');
+            const otimizar = chkOpt ? chkOpt.checked : false;
             const resp = await fetch('/api/download_exe', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     code: code,
-                    filename: state.currentFile
+                    filename: state.currentFile,
+                    otimizar: otimizar
                 })
             });
 

@@ -90,7 +90,7 @@ def _web_payload():
 
 
 @contextmanager
-def _compiled_program(code):
+def _compiled_program(code, otimizar: bool = False):
     """Compilação isolada para evitar resultados antigos ou arquivos de outra requisição."""
     jobs_dir = os.path.join(OUTPUT_DIR, 'web_jobs')
     os.makedirs(jobs_dir, exist_ok=True)
@@ -98,8 +98,11 @@ def _compiled_program(code):
         source = os.path.join(job, 'programa.minipar')
         with open(source, 'w', encoding='utf-8') as stream:
             stream.write(code)
+        cmd = [sys.executable, os.path.join(BASE_DIR, 'main.py'), source]
+        if otimizar:
+            cmd.append('-O')
         process = subprocess.run(
-            [sys.executable, os.path.join(BASE_DIR, 'main.py'), source],
+            cmd,
             cwd=job, capture_output=True, text=True, encoding='utf-8',
             errors='replace', timeout=60,
         )
@@ -119,8 +122,10 @@ def _compiled_program(code):
 def download_exe():
     """Compila em diretório exclusivo e envia somente o binário desta requisição."""
     try:
+        data = request.get_json(silent=True) or {}
         code, filename, _ = _web_payload()
-        with _compiled_program(code) as (process, executable, _, job):
+        otimizar = bool(data.get('otimizar', False))
+        with _compiled_program(code, otimizar=otimizar) as (process, executable, _, job):
             if process.returncode != 0:
                 return jsonify(success=False, error=process.stdout + process.stderr), 400
             if not os.path.isfile(executable):
@@ -232,10 +237,12 @@ def session_clear():
 def compile_code():
     """Mantém a API da IDE antiga e executa o programa da interface didática."""
     try:
+        data = request.get_json(silent=True) or {}
         code, filename, inputs = _web_payload()
+        otimizar = bool(data.get('otimizar', False))
         set_session_phase("compiling", "Compilando codigo MiniPar...", percent=60)
         append_session_log("Compilacao iniciada via IDE Web.")
-        with _compiled_program(code) as (process, executable, artifacts, job):
+        with _compiled_program(code, otimizar=otimizar) as (process, executable, artifacts, job):
             output = process.stdout + process.stderr
             success = process.returncode == 0
             returncode = None

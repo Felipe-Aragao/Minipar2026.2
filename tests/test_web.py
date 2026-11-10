@@ -116,6 +116,18 @@ def test_execucao_com_codigo_de_erro_nao_e_marcada_como_sucesso(client):
     assert 'codigo 7' in data['stderr']
 
 
+@pytest.mark.skipif(shutil.which('g++') is None, reason='g++ necessario')
+def test_execucao_web_com_otimizador(client):
+    response = client.post('/api/compile', json={
+        'code': 'seq { var x = 2 + 3 * 4; print(x + 0); }',
+        'filename': 'teste_opt.minipar',
+        'otimizar': True
+    })
+    data = response.json
+    assert response.status_code == 200 and data['success'], data
+    assert data['execution_stdout'].strip() == '14'
+
+
 def test_rejeita_payload_invalido_e_nome_com_caminho(client):
     for payload in ({'code': 1}, {'code': 'seq {}', 'filename': '../fora.minipar'},
                     {'code': 'seq {}', 'inputs': 'entrada'}):
