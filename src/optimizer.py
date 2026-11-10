@@ -10,7 +10,7 @@ from ast_nodes import (
     IfStmt, IndexAssign, IndexExpr, InputExpr, JoinStmt, ListLiteral, MatrixCreateExpr,
     MethodCall, NewExpr, NumberExpr, ParBlock, PrintStmt, Program, PropertyAccess,
     PropertyAssign, ReceiveExpr, ReturnStmt, SendStmt, SeqBlock, StringExpr, ThisExpr,
-    UnaryExpr, VarDecl
+    UnaryExpr, VarDecl, WhileStmt
 )
 from componente_otimizador import ResultadoOtimizacao
 
