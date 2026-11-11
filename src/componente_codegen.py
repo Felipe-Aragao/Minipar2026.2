@@ -5,6 +5,7 @@ from ast_nodes import Program
 from codegen import CppCodeGenerator
 
 
+# Separa a geração de texto C++ da etapa que invoca o compilador nativo.
 class ICodegen(ABC):
     @abstractmethod
     def gerar_codigo(self, programa: Program, nome_saida: str) -> bool:

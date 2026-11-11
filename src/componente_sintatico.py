@@ -6,6 +6,7 @@ from lexer import Token
 from parser import Parser
 
 
+# A interface recebe tokens e devolve a raiz do programa para as próximas fases.
 class ISintatico(ABC):
     @abstractmethod
     def analise_sintatica(self, tokens: list[Token]) -> Program:

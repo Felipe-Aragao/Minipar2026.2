@@ -22,6 +22,7 @@ def _extract_title(source: str, filename: str) -> str:
     return filename.replace(".minipar", "")
 
 
+# Identifica chamadas de input para montar os campos de entrada do menu de testes.
 def _find_inputs(source: str) -> list[dict[str, str]]:
     """Detecta chamadas input() no codigo MiniPar."""
     inputs: list[dict[str, str]] = []
@@ -52,6 +53,7 @@ def _count_channels(source: str) -> int:
     return len(re.findall(r'\bc_channel\s*\(', source))
 
 
+# Extrai metadados de apresentação do fonte sem executar nem substituir a análise do compilador.
 def analyze_program(source_path: str) -> dict[str, Any]:
     """Analisa um arquivo .minipar e retorna requisitos de execucao."""
     filename = os.path.basename(source_path)

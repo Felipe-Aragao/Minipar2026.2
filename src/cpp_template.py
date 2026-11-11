@@ -1,3 +1,6 @@
+# Cabeçalho incorporado ao C++ gerado. A afinidade usa a API do sistema operacional.
+# A lista por thread guarda futuros para a barreira join. Ela não mantém threads de trabalho.
+# MiniParChannel abre uma conexão TCP por mensagem e confirma a recepção antes de fechá-la.
 _CPP_HEADER = """\
 #include <iostream>
 #include <string>

@@ -19,6 +19,7 @@ def analisar(codigo: str, otimizar: bool = False) -> dict:
     Instâncias novas por chamada evitam mistura entre análises da Web.
     Quando ``otimizar=True``, aplica otimizações independentes de máquina na AST.
     """
+    # A resposta conserva os artefatos das fases já concluídas quando uma fase posterior falha.
     resultado = {
         "tokens": [],
         "ast": None,
@@ -69,6 +70,7 @@ def analisar(codigo: str, otimizar: bool = False) -> dict:
         if not validacao.sucesso:
             return resultado
 
+        # A opção de otimização seleciona a AST usada tanto pelo TAC quanto pela geração de C++.
         programa_saida = programa
         if otimizar:
             fase = "otimizacao"

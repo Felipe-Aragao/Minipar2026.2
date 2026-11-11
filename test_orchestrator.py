@@ -43,6 +43,7 @@ def get_test_spec(filename: str) -> Optional[dict[str, Any]]:
     return get_program_spec(path)
 
 
+# Os terminais consultam o estado da sessão por meio de um arquivo local compartilhado.
 def _load_session() -> Optional[dict[str, Any]]:
     if not os.path.exists(SESSION_FILE):
         return None
@@ -148,6 +149,7 @@ def _print_joiner_summary(session: dict[str, Any], my_role: str) -> None:
     print(f"  {'─' * 50}\n")
 
 
+# O participante acompanha o progresso registrado pelo terminal que iniciou o teste.
 def run_joiner_progress_monitor(session: dict[str, Any]) -> bool:
     """Terminal participante: lê SESSION_FILE em loop e exibe progresso."""
     terminal_id = get_terminal_id()
@@ -398,6 +400,7 @@ def check_active_session_for_new_terminal() -> tuple[Optional[str], Optional[dic
     return None, session
 
 
+# Decide se o terminal deve iniciar o teste, entrar como participante ou cancelar a execução.
 def prepare_test_execution(test_path: str) -> tuple[bool, bool, bool]:
     """
     Prepara execução. Retorna (proceed, interactive_input, is_joiner).

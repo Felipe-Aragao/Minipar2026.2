@@ -7,6 +7,7 @@ import socketserver
 import subprocess
 
 
+# O servidor atende pedidos TCP em threads separadas, com um subprocesso por chamada.
 class Worker(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
@@ -14,6 +15,7 @@ class Worker(socketserver.ThreadingTCPServer):
 
 class Request(socketserver.StreamRequestHandler):
     def handle(self):
+        # Limita a espera por uma linha de requisição incompleta.
         self.connection.settimeout(3)
         try:
             line = self.rfile.readline(4097)
@@ -24,10 +26,12 @@ class Request(socketserver.StreamRequestHandler):
                     or any(not re.fullmatch(r"-?[0-9]{1,10}", f) for f in fields[1:])):
                 self.wfile.write(b"ERRO requisicao invalida\n")
                 return
+            # O cliente só envia o identificador do programa, o índice da tarefa e argumentos inteiros.
             result = subprocess.run(
                 [self.server.executable, "--minipar-worker", *fields],
                 stdin=subprocess.DEVNULL, capture_output=True, timeout=8,
             )
+            # O protocolo usa a última linha do processo para devolver o retorno numérico.
             output = result.stdout.splitlines()
             if (result.returncode or not output or not output[-1].startswith(b"RESULT ")
                     or not math.isfinite(float(output[-1][7:]))):

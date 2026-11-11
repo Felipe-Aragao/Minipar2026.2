@@ -6,6 +6,7 @@ class ASTNode:
     line: int = 1
     col: Optional[int] = None
 
+    # Serializa os nós com seu tipo e posição para que a interface possa reconstruir a árvore.
     def to_dict(self) -> dict:
         """Serializa o nó da AST e todos os seus filhos para JSON (Dicionário)."""
         result = {"node_type": self.__class__.__name__, "line": self.line, "col": self.col}
@@ -22,6 +23,7 @@ class ASTNode:
 
 
 @dataclass
+# Representa a seleção de núcleo ou computador separadamente do corpo da tarefa.
 class Destino(ASTNode):
     tipo: str  # "core" ou "host"
     args: List[ASTNode]
@@ -67,6 +69,7 @@ class IdentifierExpr(ASTNode):
     col: Optional[int] = None
 
 @dataclass
+# Os filhos esquerdo e direito representam a precedência decidida pelo parser.
 class BinaryExpr(ASTNode):
     op: str
     left: ASTNode

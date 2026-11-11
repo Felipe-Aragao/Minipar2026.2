@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
         invalidateAnalysis();
     });
 
+    // Descarta artefatos da análise anterior quando o fonte muda.
     function invalidateAnalysis() {
         state.lastAnalysis = null;
         state.astRootNode = null;
@@ -126,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 4. ANÁLISE COMPLETA VIA BACKEND (/api/analisar)
     // ==========================================
+    // Envia o fonte ao backend e distribui o retorno pelos painéis de cada fase.
     async function runAnalysis() {
         const code = state.editor.getValue();
         setPipelineStatus('busy', 'Analisando fases...');
@@ -320,6 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 6. VISUALIZAÇÃO INTERATIVA DA AST (D3.js)
     // ==========================================
+    // Adapta a AST serializada pelo compilador à hierarquia usada pelo D3.
     function astDictToD3(node) {
         if (!node || typeof node !== 'object' || !node.node_type) return null;
 
@@ -652,6 +655,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 7. RENDERIZAÇÃO DA VISÃO SEMÂNTICA
     // ==========================================
+    // Exibe a validação, os diagnósticos e os símbolos encontrados pelo backend.
     function renderSemanticView(semantica, simbolos, erros) {
         const card = document.getElementById('semantic-status-card');
         const title = document.getElementById('semantic-status-title');
@@ -740,6 +744,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 9. EXECUÇÃO DO PROGRAMA (/api/compile)
     // ==========================================
     const btnRun = document.getElementById('btn-run-code');
+    // Compila e executa com os dados da entrada padrão preenchidos no console.
     btnRun.addEventListener('click', async () => {
         const code = state.editor.getValue();
         const inputsRaw = document.getElementById('terminal-user-input').value;
@@ -791,6 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 10. COMPILAR E BAIXAR EXECUTÁVEL (.EXE)
     // ==========================================
     const btnDownloadExe = document.getElementById('btn-download-exe');
+    // Solicita o executável compilado ao backend e inicia o download no navegador.
     btnDownloadExe.addEventListener('click', async () => {
         const code = state.editor.getValue();
         setPipelineStatus('busy', 'Gerando executável nativo (.exe)...');

@@ -73,6 +73,7 @@ def api_analisar():
             "erros": [{"fase": "sistema", "linha": None, "coluna": None, "mensagem": str(e)}]
         }), 500
 
+# Valida o código, o nome do arquivo e as linhas de entrada recebidas pela Web.
 def _web_payload():
     data = request.get_json(silent=True)
     if not isinstance(data, dict) or not isinstance(data.get('code'), str):
@@ -90,6 +91,7 @@ def _web_payload():
 
 
 @contextmanager
+# Cada requisição compila em uma pasta temporária própria para isolar os artefatos.
 def _compiled_program(code, otimizar: bool = False):
     """Compilação isolada para evitar resultados antigos ou arquivos de outra requisição."""
     jobs_dir = os.path.join(OUTPUT_DIR, 'web_jobs')
@@ -119,6 +121,7 @@ def _compiled_program(code, otimizar: bool = False):
 
 
 @app.route('/api/download_exe', methods=['POST'])
+# O conteúdo do executável é lido antes de a pasta temporária ser descartada.
 def download_exe():
     """Compila em diretório exclusivo e envia somente o binário desta requisição."""
     try:
@@ -145,6 +148,7 @@ def download_exe():
 
 
 @app.route('/api/tests', methods=['GET'])
+# A lista usa a numeração dos testes oficiais para manter a ordem do menu.
 def get_tests():
     # Retorna os 11 testes oficiais da pasta tests/oficiais em ordem numerica (1 a 11)
     oficiais_dir = os.path.join(TESTS_DIR, 'oficiais')
@@ -234,6 +238,7 @@ def session_clear():
 
 
 @app.route('/api/compile', methods=['POST'])
+# Executa o binário com as entradas enviadas pelo navegador e devolve a saída ao terminal da interface.
 def compile_code():
     """Mantém a API da IDE antiga e executa o programa da interface didática."""
     try:

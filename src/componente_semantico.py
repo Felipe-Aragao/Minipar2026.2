@@ -19,6 +19,7 @@ class ISemantico(ABC):
         """Valida o programa e retorna os dados da análise."""
 
 
+# Cria um analisador por chamada para que os símbolos e diagnósticos não vazem entre programas.
 class C_Semantico(ISemantico):
     def __init__(self, *, emitir_diagnosticos: bool = False) -> None:
         self._emitir_diagnosticos = emitir_diagnosticos

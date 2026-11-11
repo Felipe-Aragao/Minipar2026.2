@@ -1,6 +1,7 @@
 import sys
 import os
 
+# Resolve os imports a partir do projeto, mesmo quando o terminal está em outra pasta.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(BASE_DIR, 'src'))
 
@@ -13,6 +14,7 @@ from lexer import LexError, TokenType
 from parser import ParseError
 from componente_codegen import C_Codegen, ICodegen
 
+# A CLI interrompe o pipeline quando uma fase encontra erros e só chama o GCC após validar o programa.
 def compile_file(source_path: str, output_name: str, otimizar: bool = False) -> bool:
     """Processa as Fases do Compilador em um arquivo alvo."""
     print(f"\n=== Compilando: {source_path} ===")
@@ -72,6 +74,7 @@ def compile_file(source_path: str, output_name: str, otimizar: bool = False) -> 
     return codegen.gerar_codigo(program, output_name)
 
 
+# O menu oferece acesso aos testes no terminal e às duas interfaces servidas pelo Flask.
 def start_interactive():
     """Inicia a tela de seleção inicial do sistema."""
     from test_orchestrator import (
@@ -130,6 +133,7 @@ def start_interactive():
         print("\n[ERRO] Escolha inválida. Finalizando o sistema.")
 
 
+# A opção de otimização é separada dos argumentos de caminho e nome do executável.
 def main() -> int:
     args = sys.argv[1:]
     otimizar = False

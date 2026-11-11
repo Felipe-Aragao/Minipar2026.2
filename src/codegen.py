@@ -26,6 +26,7 @@ class CppCodeGenerator:
             else: res.append(ch)
         return "".join(res)
 
+    # Traduz os nós que produzem valores e encaminha operações nativas aos auxiliares do runtime.
     def _translate_expression(self, node: Optional[ASTNode]) -> str:
         if node is None: return "0"
         if isinstance(node, NumberExpr): return node.value
@@ -187,6 +188,7 @@ class CppCodeGenerator:
             return "double"
         return "auto"
 
+    # Emite comandos C++ com a indentação correspondente ao bloco atual.
     def _translate_statement(self, node: Optional[ASTNode], indent: str = "") -> str:
         if node is None: return ""
         if isinstance(node, VarDecl):
@@ -327,6 +329,7 @@ class CppCodeGenerator:
                 f"{self._translate_expression(node.target.index)}, "
                 f"{self._translate_expression(node.value)})")
 
+    # Numera as chamadas remotas para que o worker despache apenas os pontos previstos no programa.
     def _translate_remote_fork(self, node: ForkStmt) -> str:
         call = node.body
         task_id = len(self._remote_calls)
@@ -340,6 +343,7 @@ class CppCodeGenerator:
             request += f' + " " + std::to_string(__remote_int({value}))'
         return f'__remote_fork({", ".join(destination)}, {request})'
 
+    # O executável em modo worker valida a identidade do programa antes de chamar a função.
     def _remote_dispatch(self, program_id: str) -> str:
         code = '    if (argc > 1 && std::string(argv[1]) == "--minipar-worker") {\n'
         code += f'        if (argc < 4 || std::string(argv[2]) != "{program_id}") return 2;\n'
@@ -389,6 +393,7 @@ class CppCodeGenerator:
                 else: cpp_code += self._translate_statement(node.body, "    ")
                 cpp_code += "}\n\n"
 
+        # Emite o ponto de entrada depois das declarações de classes e funções.
         main_start = len(cpp_code)
         cpp_code += "int main() {\n    #ifdef _WIN32\n        SetConsoleOutputCP(CP_UTF8);\n        SetConsoleCP(CP_UTF8);\n        WSADATA wsa;\n        WSAStartup(MAKEWORD(2,2), &wsa);\n    #endif\n\n"
         for node in program.statements:
@@ -398,6 +403,7 @@ class CppCodeGenerator:
                 else: cpp_code += self._translate_statement(node, "    ")
         cpp_code += "\n    #ifdef _WIN32\n        WSACleanup();\n    #endif\n    return 0;\n}\n"
         if self._remote_calls:
+            # O identificador impede que uma chamada seja atendida por um programa gerado diferente.
             program_id = hashlib.sha256(cpp_code.encode("utf-8")).hexdigest()
             declarations = CPP_REMOTE + f'\nconstexpr char __remote_program_id[] = "{program_id}";\n'
             prefix = cpp_code[len(_CPP_HEADER):main_start]
@@ -412,6 +418,7 @@ class CppCodeGenerator:
             cpp_code = _CPP_HEADER + declarations + prefix + main
         return cpp_code
 
+    # Grava o C++ e usa o GCC para produzir o executável da plataforma atual.
     def generate(self, program: Program, output_name: str) -> bool:
         cpp_code = self.generate_text(program)
 

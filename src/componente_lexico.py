@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from lexer import Lexer, Token
 
 
+# A interface entrega tokens com posição para o parser e para a Web.
 class ILexico(ABC):
     @abstractmethod
     def analise_lexica(self, codigo: str) -> list[Token]:

@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 
 
 @dataclass
+# Registra tipo e membros conhecidos, além de indicar quando uma coleção contém objetos.
 class Symbol:
     name: str
     type: str
@@ -44,6 +45,7 @@ class ITabelaSimbolos(ABC):
         """Histórico das declarações, inclusive de escopos já encerrados."""
 
 
+# A pilha guarda os escopos ativos. O histórico também conserva declarações de escopos já encerrados.
 class C_TabelaSimbolos(ITabelaSimbolos):
     def __init__(self) -> None:
         self._escopos: List[Dict[str, Symbol]] = [{}]
@@ -83,6 +85,7 @@ class C_TabelaSimbolos(ITabelaSimbolos):
         return self._escopos[indice][nome] if indice is not None else None
 
     def localizar_escopo(self, nome: str) -> Optional[int]:
+        # Busca do escopo mais interno para o global, permitindo sombrear nomes externos.
         for indice in range(self.profundidade - 1, -1, -1):
             if nome in self._escopos[indice]:
                 return indice

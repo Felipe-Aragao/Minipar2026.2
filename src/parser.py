@@ -113,6 +113,7 @@ class Parser:
         return node
         
     # Analisador Sintático para Fork
+    # Lê o destino opcional antes de distinguir um corpo em bloco de uma expressão.
     def _parse_fork(self) -> ASTNode:
         line = self._tokens[self._pos - 1].line
         col = self._tokens[self._pos - 1].col
@@ -142,6 +143,7 @@ class Parser:
         return ForkStmt(destino=destino_obj, body=body, line=line, col=col)
 
     # Analisador Sintático para Join
+    # Distingue a barreira sem argumentos da espera por tarefas identificadas.
     def _parse_join(self) -> ASTNode:
         line = self._tokens[self._pos - 1].line
         col = self._tokens[self._pos - 1].col
@@ -276,6 +278,7 @@ class Parser:
         self._match(TokenType.SEMICOLON)
         return ReturnStmt(value=value, line=line, col=col)
 
+    # Despacha a produção conforme o token inicial do comando.
     def _parse_statement(self) -> ASTNode:
         if self._match(TokenType.CLASS): return self._parse_class_decl()
         if self._match(TokenType.FUNC): return self._parse_func_decl()
@@ -356,6 +359,7 @@ class Parser:
             expr = node
         return expr
 
+    # A soma e a subtração consomem fatores completos, preservando a precedência de multiplicação e divisão.
     def _parse_term(self) -> ASTNode:
         expr = self._parse_factor()
         while self._peek().type in (TokenType.PLUS, TokenType.MINUS):
@@ -385,6 +389,7 @@ class Parser:
             return node
         return self._parse_primary()
 
+    # Os parênteses reiniciam a leitura de uma expressão completa dentro do agrupamento.
     def _parse_primary(self) -> ASTNode:
         tok = self._peek()
         node = None
