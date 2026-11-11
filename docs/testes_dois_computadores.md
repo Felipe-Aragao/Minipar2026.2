@@ -2,8 +2,8 @@
 
 Os programas de `tests/distribuidos/` são variantes dos testes 1 e 2 com os papéis
 separados por máquina. Eles usam os canais TCP do runtime real do MiniPar.
-Não substituem os 11 programas oficiais nem implementam despacho remoto automático
-de `fork host(...)`.
+Essas variantes complementam os 11 programas oficiais. O despacho via
+`fork host(...)` é demonstrado em um ensaio próprio ao final deste guia.
 
 ## Preparação
 
