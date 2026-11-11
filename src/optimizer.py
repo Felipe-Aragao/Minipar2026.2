@@ -37,6 +37,7 @@ class ASTOptimizer:
                         total += self.count_nodes(item)
         return total
 
+    # Verifica quando uma expressão pode ser transformada sem descartar efeitos observáveis.
     def is_pure(self, node: Optional[ASTNode]) -> bool:
         """Verifica se uma subexpressão não possui efeitos colaterais conhecidos."""
         if node is None:
@@ -64,6 +65,7 @@ class ASTOptimizer:
                 return True
         return False
 
+    # Percorre a AST para simplificar expressões e remover trechos reconhecidos como inalcançáveis.
     def optimize(self, program: Program) -> ResultadoOtimizacao:
         """Executa passadas de otimização até atingir ponto fixo ou limite máximo."""
         self.transformacoes = []
@@ -281,6 +283,7 @@ class ASTOptimizer:
     # -------------------------------------------------------------------------
     # Regras de Constant Folding
     # -------------------------------------------------------------------------
+    # Só dobra operações que o compilador consegue avaliar sobre operandos conhecidos.
     def _fold_binary(self, op: str, left: Any, right: Any, line: int, col: Optional[int]) -> Optional[ASTNode]:
         # Ambos NumberExpr
         if isinstance(left, NumberExpr) and isinstance(right, NumberExpr):
@@ -379,6 +382,7 @@ class ASTOptimizer:
         return str(value)
 
     @staticmethod
+    # Mantém a regra de divisão inteira do C++ nas expressões dobradas.
     def _int_quotient(left: int, right: int) -> int:
         magnitude = abs(left) // abs(right)
         return -magnitude if (left < 0) != (right < 0) else magnitude

@@ -80,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return text;
     }
 
+    // Consulta a sessão local para refletir o progresso do teste na interface de desenvolvimento.
     function startProgressPoll() {
         stopProgressPoll();
         isSessionJoiner = true;
@@ -218,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    // Monta a entrada padrão a partir dos campos indicados na descrição do teste.
     async function collectInputs(spec) {
         if (!spec || !spec.requires_input || !spec.inputs.length) return [];
 
@@ -242,6 +244,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return collected;
     }
 
+    // Coordena papéis da sessão com base nos metadados do teste selecionado.
     async function handleMultiComputer(spec, filename) {
         if (!spec || !spec.multi_computer || !spec.multi_computer.required) return true;
 
@@ -294,6 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
         btnRun.textContent = state ? "⏳ Compilando..." : "▶ Compile & Run";
     }
 
+    // Envia código e entradas ao backend e apresenta a saída retornada pelo processo.
     async function runCompile(code, filename, inputs) {
         setCompiling(true);
         terminalOutput.textContent = "Rodando compilador...";

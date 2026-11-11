@@ -111,6 +111,7 @@ class SemanticAnalyzer:
         if declared == "task" and actual == "task": return True
         return declared == actual
 
+    # Indexa as declarações de classes e funções antes de validar seus usos.
     def _collect_declarations(self, program: Program) -> None:
         for stmt in program.statements:
             if isinstance(stmt, FuncDecl):
@@ -120,6 +121,7 @@ class SemanticAnalyzer:
                 methods = {m.name: m.params for m in stmt.methods}
                 self._classes[stmt.name] = Symbol(stmt.name, "CLASS", attributes=attrs, methods=methods)
 
+    # Compara o escopo da declaração com o limite da tarefa para detectar escritas externas.
     def _check_memory_isolation(self, name: str, node: ASTNode) -> None:
         if self._parallel_scope_start is None:
             return
@@ -130,6 +132,7 @@ class SemanticAnalyzer:
         if index is not None and index < self._parallel_scope_start:
             self._report(node, f"Violacao de Isolamento: Variavel externa '{name}' nao pode ser alterada dentro de um {self._parallel_kind}. Use mensagens (canais) para compartilhar dados.")
 
+    # Detecta referências a objetos, inclusive quando estão dentro de coleções.
     def _contains_objects(self, node: Optional[ASTNode]) -> bool:
         if node is None:
             return False
@@ -155,6 +158,7 @@ class SemanticAnalyzer:
             if symbol.type in self._classes or symbol.contains_objects:
                 self._report(node, f"Violacao de Isolamento: Objeto externo '{name}' nao pode ser capturado dentro de um {self._parallel_kind}. Crie o objeto dentro da tarefa e troque dados por canais.")
 
+    # Entra no escopo da tarefa e restaura o contexto anterior ao sair, inclusive em tarefas aninhadas.
     def _validate_parallel_task(self, node: ASTNode, kind: str) -> None:
         old_scope, old_kind = self._parallel_scope_start, self._parallel_kind
         self._parallel_scope_start = self.tabela_simbolos.profundidade
@@ -166,6 +170,7 @@ class SemanticAnalyzer:
             self._exit_scope()
             self._parallel_scope_start, self._parallel_kind = old_scope, old_kind
 
+    # Avalia expressões constantes na verificação do destino de afinidade.
     def _constant_number(self, node: ASTNode) -> Optional[Fraction]:
         """Avalia apenas aritmética constante, sem executar código MiniPar."""
         if isinstance(node, NumberExpr):
@@ -449,6 +454,7 @@ class SemanticAnalyzer:
         elif isinstance(node, InputExpr):
             if node.prompt: self.validate_node(node.prompt)
 
+    # Primeiro reúne declarações globais e depois valida a AST com a tabela de símbolos.
     def analyze(self, program: Program) -> bool:
         self._collect_declarations(program)
         for stmt in program.statements: self.validate_node(stmt)

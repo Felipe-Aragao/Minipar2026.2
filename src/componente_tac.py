@@ -5,6 +5,7 @@ from ast_nodes import Program
 from tac import TACGenerator
 
 
+# Expõe o TAC em memória para a Web e em arquivo para a CLI e o executor de testes.
 class ITAC(ABC):
     @abstractmethod
     def gerar_texto(self, programa: Program) -> str:

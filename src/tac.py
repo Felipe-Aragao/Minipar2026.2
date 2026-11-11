@@ -18,11 +18,13 @@ class TACGenerator:
         self.break_stack: list[str] = []
         self.continue_stack: list[str] = []
 
+    # Dá um nome ao resultado de uma operação para que os próximos passos possam reutilizá-lo.
     def _temp(self) -> str:
         name = f"t{self.temp_count}"
         self.temp_count += 1
         return name
 
+    # Usa rótulos distintos para os alvos de salto de cada estrutura de controle.
     def _label(self, prefix: str) -> str:
         name = f"{prefix}_{self.label_count}"
         self.label_count += 1
@@ -106,6 +108,7 @@ class TACGenerator:
 
         return "?"
 
+    # Emite o início da tarefa e um salto que separa o corpo da subtarefa do fluxo chamador.
     def _stmt_fork(self, node: ForkStmt, assign_to: Optional[str] = None) -> None:
         """Gera o TAC para a instrução FORK, traduzindo o destino de alocação."""
         
@@ -142,6 +145,7 @@ class TACGenerator:
         self._emit(f"{lbl_fork_end}:")
         
 
+    # Representa a espera por uma tarefa específica ou a barreira para todas as tarefas.
     def _stmt_join(self, node: JoinStmt, assign_to: Optional[str] = None) -> None:
         """Gera o TAC para a instrução JOIN."""
         args_eval = [self._expr(a) for a in getattr(node, "args", [])]

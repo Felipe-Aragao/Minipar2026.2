@@ -15,6 +15,7 @@ class ResultadoOtimizacao(NamedTuple):
     transformacoes: list[str]
 
 
+# Devolve a AST otimizada e métricas para o terminal e a interface didática.
 class IOtimizador(ABC):
     """Interface abstrata para otimizadores independentes de máquina."""
 

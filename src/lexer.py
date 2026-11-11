@@ -128,6 +128,7 @@ class Lexer:
         if self._pos >= len(self._source): return "\0"
         return self._source[self._pos]
 
+    # Atualiza linha e coluna ao consumir o caractere, mantendo a posição de cada token.
     def _advance(self) -> str:
         ch = self._source[self._pos]
         self._pos += 1
@@ -137,6 +138,7 @@ class Lexer:
         else: self._col += 1
         return ch
 
+    # Ignora separadores e comentários iniciados por cerquilha fora de literais.
     def _skip_whitespace_and_comments(self) -> None:
         while self._pos < len(self._source):
             ch = self._peek()
@@ -148,6 +150,7 @@ class Lexer:
     def _make_token(self, token_type: TokenType, lexeme: str, line: int, col: int) -> Token:
         return Token(token_type, lexeme, line, col)
 
+    # Registra a posição inicial antes de consumir o lexema completo.
     def tokenize(self) -> List[Token]:
         tokens: List[Token] = []
         while self._pos < len(self._source):

@@ -1,5 +1,8 @@
 """Cliente TCP incorporado somente em programas que usam fork host."""
 
+# O gerador inclui este cliente TCP apenas quando o programa usa fork host.
+# A requisição leva o identificador do programa, a tarefa e os argumentos. A resposta traz o resultado ou um erro.
+# O futuro remoto entra na mesma lista de espera usada por join nas tarefas locais.
 CPP_REMOTE = r"""
 #include <iomanip>
 #ifndef _WIN32

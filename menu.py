@@ -20,6 +20,7 @@ from test_orchestrator import (
 )
 
 
+# O modo interativo deixa o processo ler o teclado. O modo capturado recolhe a saída para exibição.
 def executar_binario(output_name: str, interactive: bool = False) -> str:
     """Executa o binario. Modo interativo quando o programa usa input()."""
     exe_ext = ".exe" if sys.platform == "win32" else ""
@@ -71,6 +72,7 @@ def _exibir_info_teste(test_path: str) -> None:
         print(f"  Multi-terminal: {mc['count']} participante(s)")
 
 
+# Prepara a sessão do teste, compila o fonte e registra o resultado da execução.
 def rodar_teste(test_path: str) -> None:
     base_name = os.path.basename(test_path).replace(".minipar", "")
 
