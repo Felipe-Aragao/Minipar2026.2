@@ -10,13 +10,6 @@ Grupo MiniPar 2026.2:
 - Lucas Trindade de Souza
 
 A versão 2026.2 reutiliza o projeto [MiniPar 2026.1](https://github.com/luizwhirl/minipar-improvement).
-Autores da base 2026.1:
-
-Emanuele Vitória de Jesus Lima - [Manu-Vii](https://github.com/Manu-Vii)
-
-José Lucas de Oliveira Quintela - [lucasqtl](https://github.com/lucasqtl)
-
-Luiz Miguel de Melo Bomfim - [luizwhirl](https://github.com/luizwhirl)
 
 ---
 
