@@ -11,6 +11,8 @@ Grupo MiniPar 2026.2:
 
 A versão 2026.2 reutiliza o projeto [MiniPar 2026.1](https://github.com/luizwhirl/minipar-improvement).
 
+**Vídeo da apresentação do MiniPar 2026.2** [Assistir no YouTube](https://youtu.be/iL2XqVqi-sk)
+
 ---
 
 ## Estrutura do Projeto
